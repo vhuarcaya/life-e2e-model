@@ -1,6 +1,6 @@
 # LIFE E2E Nulling Interferometer — Analytical Beam Propagation Model
 
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.XXXXXXX-blue)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.192c634-blue)](https://doi.org/10.5281/zenodo.192c634)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -179,7 +179,7 @@ If you use this code in your research, please cite both the paper and the softwa
   author  = {Huarcaya, Victor},
   title   = {Analytical Throughput, Null Depth, and Surface Tolerance Budget
              for the {LIFE} Nulling Interferometer Combiner},
-  journal = {Astronomy \& Astrophysics},
+  journal = {TBD},
   year    = {2026},
   note    = {in preparation}
 }
