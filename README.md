@@ -1,6 +1,6 @@
 # LIFE E2E Nulling Interferometer — Analytical Beam Propagation Model
 
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.192c634-blue)](https://doi.org/10.5281/zenodo.192c634)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18716470-blue)](https://doi.org/10.5281/zenodo.18716470)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -190,7 +190,7 @@ If you use this code in your research, please cite both the paper and the softwa
   year      = {2026},
   publisher = {GitHub},
   url       = {https://github.com/vhuarcaya/life-e2e-model},
-  doi       = {10.5281/zenodo.XXXXXXX}
+  doi       = {10.5281/zenodo.18716470}
 }
 ```
 
