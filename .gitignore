@@ -1,0 +1,86 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# =============================================================================
+# Scientific computing
+# =============================================================================
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Large data files
+*.hdf5
+*.h5
+*.fits
+*.npy
+*.npz
+
+# =============================================================================
+# IDE and OS
+# =============================================================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Spyder
+.spyproject/
+.spyderproject
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# =============================================================================
+# LaTeX (paper source — kept separate)
+# =============================================================================
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.run.xml
+*-blx.bib
+
+# =============================================================================
+# Zemax (Phase II — future)
+# =============================================================================
+*.zmx
+*.ZMX
+*.ses
+*.SES

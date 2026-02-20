@@ -1,0 +1,6 @@
+# LIFE E2E Analytical Model — Python dependencies
+# Tested with Python 3.10–3.12
+
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7

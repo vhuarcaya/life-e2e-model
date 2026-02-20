@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+title: >-
+  LIFE E2E Nulling Interferometer — Analytical Beam Propagation
+  Model
+message: >-
+  If you use this software, please cite both the software and
+  the companion paper.
+type: software
+authors:
+  - given-names: Victor
+    family-names: Huarcaya
+    email: victor.huarcaya@unibe.ch
+    affiliation: >-
+      Physikalisches Institut, University of Bern, Sidlerstrasse 5,
+      CH-3012 Bern, Switzerland
+    orcid: ''
+repository-code: 'https://github.com/vhuarcaya/life-e2e-model'
+url: 'https://www.life-space-mission.com'
+abstract: >-
+  End-to-end analytical wavefront propagation model for the Large
+  Interferometer For Exoplanets (LIFE) nulling combiner. Traces
+  photon throughput and null depth through every optical surface
+  of the LIFE modified Mach–Zehnder beam combiner across the
+  6–16 µm mid-infrared science band. Includes fiber coupling
+  analysis, surface-by-surface throughput chain, null error budget,
+  surface WFE sensitivity ranking, and 10⁵-realisation Monte Carlo
+  tolerance analysis.
+keywords:
+  - nulling interferometry
+  - exoplanet detection
+  - mid-infrared
+  - beam propagation
+  - LIFE mission
+  - wavefront error
+  - fiber coupling
+  - optical modeling
+license: GPL-3.0
+version: 1.0.0
+date-released: '2026-02-20'
+preferred-citation:
+  type: article
+  authors:
+    - given-names: Victor
+      family-names: Huarcaya
+  title: >-
+    Analytical Throughput, Null Depth, and Surface Tolerance Budget
+    for the LIFE Nulling Interferometer Combiner
+  journal: 'Astronomy & Astrophysics'
+  year: 2026
+  status: in-preparation
