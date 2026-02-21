@@ -9,24 +9,10 @@ End-to-end analytical wavefront propagation model for the [Large Interferometer 
 This code traces photon throughput and null depth through every optical surface of the LIFE modified Mach–Zehnder (MMZ) beam combiner across the 6–16 µm mid-infrared science band.
 
 **Companion paper:**  
-V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," (2026, in preparation).
+V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner,” *TBD* (2026, in preparation).
 
 ---
-## Key Results
 
-### Fiber coupling efficiency (Module 1)
-![Fiber coupling](figures/fig1_coupling_vs_beta.png)
-
-### Throughput waterfall at 10 µm (Module 2)
-![Throughput waterfall](figures/fig6_throughput_waterfall.png)
-
-### End-to-end throughput across the science band (Module 2)
-![Throughput vs wavelength](figures/fig7_throughput_vs_wavelength.png)
-
-### Monte Carlo null depth distributions (10⁵ realisations)
-![MC null distributions](figures/fig11_mc_null_distributions.png)
-
----
 ## Scientific Context
 
 LIFE is a proposed ESA large-class space mission consisting of five formation-flying spacecraft at L2 that would use nulling interferometry to detect and characterise the thermal emission of temperate exoplanets around Sun-like stars.
@@ -46,6 +32,20 @@ The model establishes quantitative performance floors that the NICE (Nulling Int
 - **Surface WFE dominates null depth** — not beamsplitter chromaticity — due to quartic σ⁴/λ⁴ fiber-filtered scaling accumulated across ~20 optical surfaces
 - **Technology gap:** 140× at 6 µm, 6–20× at 10 µm (warm-bench), requiring surface improvements of only 2.1–3.4× thanks to the same quartic scaling
 - **Validated** against NICE warm-bench testbed measurements (Birbacher et al. 2026)
+
+### Assumptions and Limitations
+
+This is a **Phase I analytical baseline** — not a full physical optics simulation. The model operates under the following assumptions:
+
+- **Maréchal small-aberration regime:** coupling loss approximated as exp(−(2πσ/λ)²), valid for σ/λ ≲ 0.1
+- **Gaussian fiber mode:** LP₀₁ mode approximated via Marcuse formula; no higher-order mode coupling
+- **Independent surface residuals:** WFE on each optical surface drawn independently (worst-case; no correlated fabrication errors)
+- **Zernike decomposition ≤ Z₁₁:** low-order aberrations only; no high spatial frequency scattering
+- **Warm-bench (300 K) specifications:** no cryogenic surface improvement assumed
+- **No adaptive nulling correction:** performance floors represent the uncompensated case
+- **Scalar diffraction:** no full vector electromagnetic treatment; polarisation handled via Jones matrix splitting
+
+These define the valid operating domain. Phase II (Zemax POP validation) will address diffraction clipping, ghost beams, and polarisation ray tracing.
 
 ---
 
@@ -110,7 +110,15 @@ cd life-e2e-model
 pip install -r requirements.txt
 ```
 
-Then open the demo notebook for an interactive walkthrough:
+Run the full analysis pipeline and generate all figures:
+
+```bash
+python -m life_e2e                # Full run (10⁵ MC realisations, ~2 min)
+python -m life_e2e --quick        # Quick run (10³ realisations, ~5 s)
+python -m life_e2e --output-dir results/  # Custom output directory
+```
+
+Or open the demo notebook for an interactive walkthrough:
 
 ```bash
 pip install jupyter
@@ -176,7 +184,7 @@ Key numerical results to verify:
 
 ## Testing
 
-The test suite includes 38 regression checks across all 7 modules:
+The test suite includes 33 regression checks across all 7 modules:
 
 ```bash
 pip install pytest
@@ -194,6 +202,7 @@ life-e2e-model/
 ├── README.md
 ├── LICENSE                        # GPL-3.0
 ├── CITATION.cff                   # Machine-readable citation
+├── CHANGELOG.md                   # Version history
 ├── pyproject.toml                 # Package configuration
 ├── requirements.txt
 ├── .gitignore
@@ -203,6 +212,7 @@ life-e2e-model/
 ├── src/
 │   └── life_e2e/
 │       ├── __init__.py
+│       ├── __main__.py                # python -m life_e2e entry point
 │       ├── material_properties.py     # Optical constants library
 │       ├── fiber_modes.py             # Fiber mode library
 │       ├── m1_fiber_coupling.py       # Module 1: Coupling
@@ -215,7 +225,7 @@ life-e2e-model/
 ├── figures/                       # Generated paper figures
 ├── tests/
 │   ├── conftest.py
-│   └── test_regression.py         # 38 regression checks
+│   └── test_regression.py         # 33 regression checks
 └── docs/
 ```
 
@@ -235,18 +245,19 @@ If you use this code in your research, please cite both the paper and the softwa
   note    = {in preparation}
 }
 
-@misc{huarcaya2026_life_e2e,
-  author       = {Huarcaya, Victor},
-  title        = {{LIFE} E2E Nulling Interferometer Analytical Model},
-  year         = {2026},
-  howpublished = {\url{https://github.com/vhuarcaya/life-e2e-model}},
-  note         = {DOI: \href{https://doi.org/10.5281/zenodo.18716470}{10.5281/zenodo.18716470}}
+@software{huarcaya2026_life_e2e_code,
+  author    = {Huarcaya, Victor},
+  title     = {{LIFE} E2E Nulling Interferometer Analytical Model},
+  year      = {2026},
+  publisher = {GitHub},
+  url       = {https://github.com/vhuarcaya/life-e2e-model},
+  doi       = {10.5281/zenodo.18716470}
 }
 ```
 
 ---
 
-## Related Work (under construction)
+## Related Work (in construction)
 
 This model builds on and connects to:
 
@@ -270,4 +281,3 @@ This project is licensed under the GNU General Public License v3.0 — see [LICE
 Physikalisches Institut, University of Bern  
 Sidlerstrasse 5, CH-3012 Bern, Switzerland  
 [victor.huarcaya@unibe.ch](mailto:victor.huarcaya@unibe.ch)
-
