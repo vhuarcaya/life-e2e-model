@@ -23,7 +23,7 @@ ENV/
 
 # Jupyter notebooks
 .ipynb_checkpoints/
-*.ipynb
+# *.ipynb
 
 # Large data files
 *.hdf5
