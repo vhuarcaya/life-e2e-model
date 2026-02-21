@@ -12,7 +12,21 @@ This code traces photon throughput and null depth through every optical surface 
 V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," (2026, in preparation).
 
 ---
+## Key Results
 
+### Fiber coupling efficiency (Module 1)
+![Fiber coupling](figures/fig1_coupling_vs_beta.png)
+
+### Throughput waterfall at 10 µm (Module 2)
+![Throughput waterfall](figures/fig6_throughput_waterfall.png)
+
+### End-to-end throughput across the science band (Module 2)
+![Throughput vs wavelength](figures/fig7_throughput_vs_wavelength.png)
+
+### Monte Carlo null depth distributions (10⁵ realisations)
+![MC null distributions](figures/fig11_mc_null_distributions.png)
+
+---
 ## Scientific Context
 
 LIFE is a proposed ESA large-class space mission consisting of five formation-flying spacecraft at L2 that would use nulling interferometry to detect and characterise the thermal emission of temperate exoplanets around Sun-like stars.
