@@ -26,7 +26,7 @@ Surface-by-surface cumulative throughput through the 24-element LIFE optical tra
 ![Throughput waterfall](figures/fig6_throughput_waterfall.png)
 
 ### End-to-end throughput across the science band (Module 2)
-Photon conversion efficiency across 2–20 µm for different combiner configurations. The model predicts 7.0–7.7% PCE within the 6–16 µm science band, validated against the NICE testbed measurement at 3.6 µm (red square).
+Photon conversion efficiency across 2–20 µm for different combiner configurations. The model predicts 7.0–8.0% PCE within the 6–16 µm science band, validated against the NICE testbed measurement at 3.6 µm (red square).
 
 ![Throughput vs wavelength](figures/fig7_throughput_vs_wavelength.png)
 
@@ -39,7 +39,7 @@ Null depth probability distributions at 6, 10, and 16 µm from the full end-to-e
 
 ## Scientific Context
 
-LIFE is a proposed ESA large-class space mission consisting of five formation-flying spacecraft at L2 that would use nulling interferometry to detect and characterise the thermal emission of temperate exoplanets around Sun-like stars.
+LIFE is a proposed large-class space mission consisting of five formation-flying spacecraft at L2 that would use nulling interferometry to detect and characterise the thermal emission of temperate exoplanets around Sun-like stars.
 The LIFE concept study ([Quanz et al. 2022](https://doi.org/10.1051/0004-6361/202140366); [Glauser et al. 2024](https://doi.org/10.1117/12.3019318)) identified the need for a full end-to-end wavefront propagation model to assess diffraction and wavefront error propagation through the instrument optical train.
 
 This codebase provides that model — a **Phase I warm-bench, pre-optimisation analytical baseline** that assumes:
@@ -52,7 +52,7 @@ The model establishes quantitative performance floors that the NICE (Nulling Int
 
 ### Key Findings
 
-- **Photon conversion efficiency:** 7.0–7.7% across 6–16 µm (within the 3.5–10% design range)
+- **Photon conversion efficiency:** 7.0–8.0% across 6–16 µm (within the 3.5–10% design range)
 - **Surface WFE dominates null depth** — not beamsplitter chromaticity — due to quartic σ⁴/λ⁴ fiber-filtered scaling accumulated across ~20 optical surfaces
 - **Technology gap:** 140× at 6 µm, 6–20× at 10 µm (warm-bench), requiring surface improvements of only 2.1–3.4× thanks to the same quartic scaling
 - **Validated** against NICE warm-bench testbed measurements (Birbacher et al. 2026)
@@ -80,7 +80,7 @@ The model consists of **4 analysis modules**, **2 supporting libraries**, and **
 ```
 material_properties.py          fiber_modes.py
    (optical constants)          (Gaussian modes)
-        │                            │
+        │                             │
         ├────────────┬────────────────┤
         │            │                │
         ▼            ▼                ▼
