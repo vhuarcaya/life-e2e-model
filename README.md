@@ -216,18 +216,17 @@ If you use this code in your research, please cite both the paper and the softwa
   author  = {Huarcaya, Victor},
   title   = {Analytical Throughput, Null Depth, and Surface Tolerance Budget
              for the {LIFE} Nulling Interferometer Combiner},
-  journal = {Astronomy \& Astrophysics},
+  journal = {TBD},
   year    = {2026},
   note    = {in preparation}
 }
 
-@software{huarcaya2026_life_e2e_code,
-  author    = {Huarcaya, Victor},
-  title     = {{LIFE} E2E Nulling Interferometer Analytical Model},
-  year      = {2026},
-  publisher = {GitHub},
-  url       = {https://github.com/vhuarcaya/life-e2e-model},
-  doi       = {10.5281/zenodo.18716470}
+@misc{huarcaya2026_life_e2e,
+  author       = {Huarcaya, Victor},
+  title        = {{LIFE} E2E Nulling Interferometer Analytical Model},
+  year         = {2026},
+  howpublished = {\url{https://github.com/vhuarcaya/life-e2e-model}},
+  note         = {DOI: \href{https://doi.org/10.5281/zenodo.18716470}{10.5281/zenodo.18716470}}
 }
 ```
 
