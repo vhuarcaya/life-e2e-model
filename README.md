@@ -9,7 +9,7 @@ End-to-end analytical wavefront propagation model for the [Large Interferometer 
 This code traces photon throughput and null depth through every optical surface of the LIFE modified Mach–Zehnder (MMZ) beam combiner across the 6–16 µm mid-infrared science band.
 
 **Companion paper:**  
-V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," *Astronomy & Astrophysics* (2026, in preparation).
+V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," (2026, in preparation).
 
 ---
 
