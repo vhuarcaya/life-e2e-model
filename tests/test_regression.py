@@ -2,7 +2,7 @@
 LIFE E2E Model — Regression Test Suite
 ========================================
 
-38 spot-checks across all 7 modules, matching the values verified
+Spot-checks across all 7 modules, matching the values verified
 in the codebase audit. All tolerances are generous (0.5–2%) to
 account for platform-dependent floating-point differences.
 
@@ -14,6 +14,12 @@ Reference: codebase_audit.md (February 2026)
 
 import numpy as np
 import pytest
+
+
+# Fiber parameters (InF3 single-mode fiber, from m1_fiber_coupling.py)
+N_CORE = 1.50
+N_CLAD = 1.48
+A_CORE_UM = 4.5
 
 
 # ============================================================
@@ -56,31 +62,31 @@ class TestMaterialProperties:
         """Au R(10 µm, flight) = 98.60% — Ordal+1983 / Palik."""
         from material_properties import gold_reflectivity
         R = gold_reflectivity(np.array([10.0]), 'flight')
-        assert abs(float(R) - 0.9860) < 0.001
+        assert abs(R[0] - 0.9860) < 0.001
 
     def test_caf2_index_10um(self):
         """CaF₂ n(10 µm) = 1.2996 — Malitson 1963."""
         from material_properties import caf2_sellmeier
         n = caf2_sellmeier(np.array([10.0]))
-        assert abs(float(n) - 1.2996) < 0.005
+        assert abs(n[0] - 1.2996) < 0.005
 
     def test_znse_index_10um(self):
         """ZnSe n(10 µm) = 2.4065 — Tatian 1984."""
         from material_properties import znse_sellmeier
         n = znse_sellmeier(np.array([10.0]))
-        assert abs(float(n) - 2.4065) < 0.005
+        assert abs(n[0] - 2.4065) < 0.005
 
     def test_caf2_absorption_10um(self):
         """CaF₂ α(10 µm) = 2.70 cm⁻¹ — ISP Optics."""
         from material_properties import caf2_absorption
         alpha = caf2_absorption(np.array([10.0]))
-        assert abs(float(alpha) - 2.70) < 0.2
+        assert abs(alpha[0] - 2.70) < 0.2
 
     def test_detector_qe_10um(self):
         """Si:As BIB QE(10 µm) ≈ 63% — JWST MIRI heritage."""
         from material_properties import detector_qe
         qe = detector_qe(np.array([10.0]))
-        assert abs(float(qe) - 0.63) < 0.05
+        assert abs(qe[0] - 0.63) < 0.05
 
 
 # ============================================================
@@ -95,7 +101,7 @@ class TestFiberModes:
         from fiber_modes import coupling_tophat_analytical
         beta_opt = 1.1209
         eta = coupling_tophat_analytical(np.array([beta_opt]))
-        assert abs(float(eta) - 0.8145) < 0.002
+        assert abs(eta[0] - 0.8145) < 0.002
 
     def test_tophat_coupling_beta_opt(self):
         """Optimal β ≈ 1.121 maximises top-hat coupling."""
@@ -109,21 +115,21 @@ class TestFiberModes:
         """Matched Gaussian → Gaussian coupling = 100%."""
         from fiber_modes import coupling_gaussian_to_gaussian
         eta = coupling_gaussian_to_gaussian(1.0, 1.0)
-        assert abs(float(eta) - 1.0) < 1e-10
+        assert abs(np.asarray(eta).flat[0] - 1.0) < 1e-10
 
     def test_v_parameter_10um(self):
         """V-parameter should be > 0 and finite at 10 µm."""
         from fiber_modes import v_parameter
-        V = v_parameter(np.array([10.0]))
-        assert float(V) > 0
-        assert np.isfinite(float(V))
+        V = v_parameter(np.array([10.0]), N_CORE, N_CLAD, A_CORE_UM)
+        assert V[0] > 0
+        assert np.isfinite(V[0])
 
     def test_mode_field_radius_positive(self):
         """Mode field radius positive and finite at 10 µm."""
         from fiber_modes import mode_field_radius
-        w = mode_field_radius(np.array([10.0]))
-        assert float(w) > 0
-        assert np.isfinite(float(w))
+        w = mode_field_radius(np.array([10.0]), N_CORE, N_CLAD, A_CORE_UM)
+        assert w[0] > 0
+        assert np.isfinite(w[0])
 
 
 # ============================================================
@@ -137,14 +143,13 @@ class TestModule1:
         """Top-hat coupling deficit = 18.55% (1 - 0.8145)."""
         from fiber_modes import coupling_tophat_analytical
         eta = coupling_tophat_analytical(np.array([1.1209]))
-        deficit = 1.0 - float(eta)
+        deficit = 1.0 - eta[0]
         assert abs(deficit - 0.1855) < 0.005
 
     def test_coupling_decreases_with_aberration(self):
         """Coupling should decrease with increasing WFE."""
         from fiber_modes import coupling_tophat_analytical
-        # Clean coupling
-        eta_clean = float(coupling_tophat_analytical(np.array([1.1209])))
+        eta_clean = coupling_tophat_analytical(np.array([1.1209]))[0]
         # Maréchal: η ≈ η₀ × exp(-(2π σ/λ)²) → always less
         sigma_wfe = 50e-9  # 50 nm RMS
         lam = 10e-6
@@ -272,14 +277,16 @@ class TestCrossModule:
     def test_tophat_coupling_consistent(self):
         """fiber_modes and MC agree on η₀ = 81.45%."""
         from fiber_modes import coupling_tophat_analytical
-        eta_fm = float(coupling_tophat_analytical(np.array([1.1209])))
+        eta_fm = coupling_tophat_analytical(np.array([1.1209]))[0]
         assert abs(eta_fm - 0.8145) < 0.002
 
     def test_quartic_scaling(self):
-        """Null ∝ σ⁴/λ⁴: doubling λ should reduce null by 16×."""
+        """Null ∝ σ⁴/λ⁴: halving λ should increase null by 16×."""
         sigma = 50e-9
         lam1 = 6e-6
         lam2 = 12e-6
-        # Simplified quartic: N ~ (σ/λ)⁴
-        ratio = (lam1 / lam2) ** 4
+        # N ~ (σ/λ)⁴ → N(6µm)/N(12µm) = (12/6)⁴ = 16
+        N1 = (sigma / lam1) ** 4
+        N2 = (sigma / lam2) ** 4
+        ratio = N1 / N2
         assert abs(ratio - 16.0) < 0.01
