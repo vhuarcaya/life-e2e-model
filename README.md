@@ -1,6 +1,7 @@
 # LIFE E2E Nulling Interferometer — Analytical Beam Propagation Model
 
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18716470-blue)](https://doi.org/10.5281/zenodo.18716470)
+[![Tests](https://github.com/vhuarcaya/life-e2e-model/actions/workflows/tests.yml/badge.svg)](https://github.com/vhuarcaya/life-e2e-model/actions/workflows/tests.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
@@ -8,7 +9,7 @@ End-to-end analytical wavefront propagation model for the [Large Interferometer 
 This code traces photon throughput and null depth through every optical surface of the LIFE modified Mach–Zehnder (MMZ) beam combiner across the 6–16 µm mid-infrared science band.
 
 **Companion paper:**  
-V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," (2026, in preparation).
+V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget for the LIFE Nulling Interferometer Combiner," *Astronomy & Astrophysics* (2026, in preparation).
 
 ---
 
@@ -87,18 +88,33 @@ Two conventions coexist by design, with documented boundary wrappers:
 
 ---
 
-## Installation
-
-### Requirements
-
-- Python ≥ 3.10
-- NumPy, SciPy, Matplotlib (no other dependencies)
+## Quick Start
 
 ```bash
 git clone https://github.com/vhuarcaya/life-e2e-model.git
 cd life-e2e-model
 pip install -r requirements.txt
 ```
+
+Then open the demo notebook for an interactive walkthrough:
+
+```bash
+pip install jupyter
+jupyter notebook notebooks/demo_quick.ipynb
+```
+
+Or install as a package:
+
+```bash
+pip install .
+```
+
+## Installation
+
+### Requirements
+
+- Python ≥ 3.10
+- NumPy, SciPy, Matplotlib (no other dependencies)
 
 ### Running the Modules
 
@@ -144,6 +160,19 @@ Key numerical results to verify:
 
 ---
 
+## Testing
+
+The test suite includes 38 regression checks across all 7 modules:
+
+```bash
+pip install pytest
+pytest tests/test_regression.py -v
+```
+
+Tests cover material properties against published values, fiber coupling optima, null depth wavelength ordering, Monte Carlo reproducibility, and cross-module consistency. CI runs automatically on Python 3.10–3.12 via GitHub Actions.
+
+---
+
 ## Repository Structure
 
 ```
@@ -151,8 +180,12 @@ life-e2e-model/
 ├── README.md
 ├── LICENSE                        # GPL-3.0
 ├── CITATION.cff                   # Machine-readable citation
+├── pyproject.toml                 # Package configuration
 ├── requirements.txt
 ├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── tests.yml              # CI: Python 3.10–3.12
 ├── src/
 │   └── life_e2e/
 │       ├── __init__.py
@@ -163,8 +196,12 @@ life-e2e-model/
 │       ├── m3_null_error_propagation.py  # Module 3: Null depth
 │       ├── m4_surface_sensitivity.py  # Module 4: Surface WFE
 │       └── monte_carlo.py            # Monte Carlo integration
+├── notebooks/
+│   └── demo_quick.ipynb           # Interactive walkthrough (~30 s)
 ├── figures/                       # Generated paper figures
 ├── tests/
+│   ├── conftest.py
+│   └── test_regression.py         # 38 regression checks
 └── docs/
 ```
 
@@ -179,7 +216,7 @@ If you use this code in your research, please cite both the paper and the softwa
   author  = {Huarcaya, Victor},
   title   = {Analytical Throughput, Null Depth, and Surface Tolerance Budget
              for the {LIFE} Nulling Interferometer Combiner},
-  journal = {TBD},
+  journal = {Astronomy \& Astrophysics},
   year    = {2026},
   note    = {in preparation}
 }

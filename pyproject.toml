@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "life-e2e"
+version = "1.0.0"
+description = "End-to-end analytical wavefront propagation model for the LIFE nulling interferometer combiner"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Victor Huarcaya", email = "victor.huarcaya@unibe.ch"},
+]
+keywords = [
+    "nulling interferometry",
+    "exoplanet detection",
+    "mid-infrared",
+    "beam propagation",
+    "LIFE mission",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/vhuarcaya/life-e2e-model"
+Repository = "https://github.com/vhuarcaya/life-e2e-model"
+Documentation = "https://github.com/vhuarcaya/life-e2e-model#readme"
+Issues = "https://github.com/vhuarcaya/life-e2e-model/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
