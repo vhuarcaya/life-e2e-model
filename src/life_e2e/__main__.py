@@ -21,6 +21,12 @@ import sys
 import time
 import warnings
 
+# Add package directory to sys.path so bare imports (from m1_fiber_coupling ...)
+# work the same as when running modules standalone.
+_PKG_DIR = os.path.dirname(os.path.abspath(__file__))
+if _PKG_DIR not in sys.path:
+    sys.path.insert(0, _PKG_DIR)
+
 
 def main():
     parser = argparse.ArgumentParser(
