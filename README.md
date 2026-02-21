@@ -13,6 +13,30 @@ V. Huarcaya, "Analytical Throughput, Null Depth, and Surface Tolerance Budget fo
 
 ---
 
+## Key Results
+
+### Fiber coupling efficiency (Module 1)
+Top-hat beam coupling into a single-mode fiber peaks at η = 81.5% for optimal β = 1.121 — an 18.5% penalty compared to Gaussian illumination that sets the throughput floor for all flat-top collector designs.
+
+![Fiber coupling](figures/fig1_coupling_vs_beta.png)
+
+### Throughput waterfall at 10 µm (Module 2)
+Surface-by-surface cumulative throughput through the 24-element LIFE optical train at λ = 10 µm. The largest single loss is the 50/50 nulling beamsplitter; fiber coupling and detection losses bring the final PCE to ~7%.
+
+![Throughput waterfall](figures/fig6_throughput_waterfall.png)
+
+### End-to-end throughput across the science band (Module 2)
+Photon conversion efficiency across 2–20 µm for different combiner configurations. The model predicts 7.0–7.7% PCE within the 6–16 µm science band, validated against the NICE testbed measurement at 3.6 µm (red square).
+
+![Throughput vs wavelength](figures/fig7_throughput_vs_wavelength.png)
+
+### Monte Carlo null depth distributions (10⁵ realisations)
+Null depth probability distributions at 6, 10, and 16 µm from the full end-to-end Monte Carlo. Vertical lines show the mean (black), requirement (red), and analytical Module 3 prediction (purple). The gap between the MC mean and the requirement quantifies the technology challenge at each wavelength.
+
+![MC null distributions](figures/fig11_mc_null_distributions.png)
+
+---
+
 ## Scientific Context
 
 LIFE is a proposed ESA large-class space mission consisting of five formation-flying spacecraft at L2 that would use nulling interferometry to detect and characterise the thermal emission of temperate exoplanets around Sun-like stars.
