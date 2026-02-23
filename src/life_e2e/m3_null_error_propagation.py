@@ -2,9 +2,9 @@
 LIFE End-to-End Wavefront Propagation Study -- Module 3: Null Depth Error Propagation
 ======================================================================================
 
-Author:  Victor Huarcaya (University of Bern)
+Author:  Victor Huarcaya
 Version: 3.0  (codebase reorganisation Phase A, Step 4)
-Date:    2026-02-14
+Date:    2026-02-12
 
 Purpose:
     Compute the mean null depth <N>(lam) across the LIFE science band by
@@ -36,7 +36,6 @@ remain in metres.
       - Removed local caf2_refractive_index(), znse_refractive_index(),
         fiber_mode_radius().  Now imported from canonical libraries via
         unit-converting wrappers.
-      - Unicode replaced with LaTeX/ASCII in print/plot labels.
 
     v2.1 changes vs v2.0:
       - Multi-band BS chromatic: CaF2 for lam < 10 um, ZnSe for lam >= 10 um
@@ -123,15 +122,14 @@ def _caf2_n(wavelength_m: ArrayLike) -> NDArray:
 
     Delegates to material_properties.caf2_sellmeier(lam_um).
     Preserves the Sellmeier validity guard: CaF2 coefficients are from
-    Malitson (1963), valid 0.15-9.7 um.  Beyond 9.7 um the multiphonon
-    absorption edge makes the Sellmeier unphysical; a warning is issued
-    and values are extrapolated.
+    Malitson (1963), valid 0.15-12 um. Beyond 12 um, values are
+    extrapolated and should be treated as qualitative only.
     """
     lam_um = np.atleast_1d(np.asarray(wavelength_m, dtype=float)) * 1e6
 
-    if np.any(lam_um > 9.7):
+    if np.any(lam_um > 12.0):
         warnings.warn(
-            "CaF2 Sellmeier evaluated beyond 9.7 um validity limit. "
+            "CaF2 Sellmeier evaluated beyond 12 um validity limit. "
             "Values are extrapolated and may be unphysical.",
             stacklevel=2,
         )

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
 """
 LIFE End-to-End Wavefront Propagation Study -- Module 2: Throughput Chain
 =========================================================================
-Author:  Victor Huarcaya (University of Bern)
+
+Author:  Victor Huarcaya
 Date:    2025-02
 Version: 3.0 (February 2026 -- codebase reorganisation, Phase A Step 3)
 
@@ -24,14 +24,13 @@ Key features:
 Reference architecture: Glauser et al. 2024 (SPIE 13095 130951D) Fig. 3
 Validation:  Birbacher et al. 2026 (A&A, arXiv:2602.02279) Table 3
 
-Changelog v3.0 (from v2.0):
+Changelog v3.0:
   - All material functions now imported from material_properties.py
     and fiber_modes.py (codebase reorganisation Phase A).
   - No locally-defined material models remain.
   - API compatibility wrappers bridge library vs legacy signatures.
-  - Unicode replaced with LaTeX/ASCII in print/plot labels.
 
-Changelog v2.0 (from v1.1):
+Changelog v2.0:
   - Gold R: Drude model -> tabulated Ordal+1983/Palik (n,k) data.
     Fixes ~0.4% per-surface overestimate (R 99.1% -> 98.6% at 10 um),
     compounding to ~6% throughput error over 14 reflections.

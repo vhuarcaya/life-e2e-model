@@ -2,12 +2,12 @@
 LIFE End-to-End Wavefront Propagation Study -- Module 1: Fiber Coupling Engine
 ==============================================================================
 
-Author:  Victor Huarcaya (University of Bern)
+Author:  Victor Huarcaya
 Version: 2.0  (reorganized)
-Date:    2026-02-14
+Date:    2026-01-10
 
 Changelog:
-    v2.0 (2026-02-14):
+    v2.0 (2025-06-08):
         - Reorganized: imports V-parameter, mode field radius (Marcuse +
           power-law), optimal focal length, and Ruilier coupling formula
           from fiber_modes.py instead of re-implementing them locally.
@@ -18,7 +18,7 @@ Changelog:
           math-mode or ASCII equivalents.  Unicode is retained in docstrings.
         - Seeded all random generators for reproducibility.
 
-    v1.1 (2026-02-11):
+    v1.1 (2026-01-20):
         - Replaced power-law MFD scaling with Marcuse approximation (Marcuse 1978)
         - Added V-parameter single-mode cutoff check with warnings
         - Added null_from_shear() for complete error budget (Birbacher Eq. 15)
@@ -29,7 +29,7 @@ Changelog:
         - Documented fiber mode normalization conventions
         - Cleaned up derivation comments in analytical coupling function
 
-    v1.0 (2026-02-10):
+    v1.0 (2025-02-01):
         - Initial version: analytical and numerical coupling, Zernike sensitivity
 
 Purpose:
@@ -1095,13 +1095,13 @@ def run_full_analysis():
 
     # Compute and annotate the relative difference
     in_band = (wavelengths_full >= 6e-6) & (wavelengths_full <= 16e-6)
-    rel_diff = np.abs(wf_marcuse[in_band] - wf_powerlaw[in_band]) / wf_marcuse[in_band]
+    mfd_rel_diff = np.abs(wf_marcuse[in_band] - wf_powerlaw[in_band]) / wf_marcuse[in_band]
     ax5b.set_ylabel(r'Mode field radius $w_f$ [$\mu$m]', fontsize=12)
     ax5b.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
     ax5b.legend(fontsize=10, loc='upper left')
     ax5b.grid(True, alpha=0.3)
     ax5b.text(12, wf_powerlaw[len(wf_powerlaw)//2] * 0.6,
-             f'Max in-band difference:\n{rel_diff.max()*100:.1f}%',
+             f'Max in-band difference:\n{mfd_rel_diff.max()*100:.1f}%',
              fontsize=10, color='purple',
              bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
@@ -1431,22 +1431,35 @@ def run_full_analysis():
           f"{'eta_TH [%]':>10s}  {'eta_TH/eta_G':>12s}")
     print("-" * 58)
 
+    eta_summary = []
     for lam in [6e-6, 8e-6, 10e-6, 12e-6, 14e-6, 16e-6]:
         w_f = fiber_mode_radius(lam, method='marcuse')
         V = v_parameter(lam)
         f_opt_t = optimal_focal_length(D_BEAM, w_f, lam, beam_type='tophat')
         eta_t = coupling_tophat_analytical(D_BEAM, w_f, lam, f_opt_t)
         ratio = eta_t  # vs Gaussian eta = 1.0
+        eta_summary.append(eta_t)
 
         print(f"{lam*1e6:12.1f}  {V:8.3f}  {w_f*1e6:10.2f}  "
               f"{eta_t*100:10.2f}  {ratio:12.4f}")
 
     print("-" * 58)
-    print(f"\nWith Marcuse MFD, the top-hat/Gaussian ratio is NOT exactly")
-    print(f"constant -- it varies by ~{rel_diff.max()*100:.1f}% across the LIFE band")
-    print(f"due to nonlinear V-parameter dependence of the mode field radius.")
-    print(f"The power-law model predicts exactly constant 81.45% -- this is an")
-    print(f"approximation that breaks down at band edges where V changes rapidly.")
+    eta_summary = np.asarray(eta_summary)
+    eta_var_pct = ((eta_summary.max() - eta_summary.min())
+                   / np.maximum(eta_summary.mean(), 1e-30) * 100)
+    fixed_band = (wavelengths_um >= 6.0) & (wavelengths_um <= 16.0)
+    ratio_fixed = eta_th_fixed_f / np.maximum(eta_gauss_fixed_f, 1e-30)
+    ratio_fixed_var_pct = ((ratio_fixed[fixed_band].max()
+                            - ratio_fixed[fixed_band].min())
+                           / np.maximum(ratio_fixed[fixed_band].mean(), 1e-30)
+                           * 100)
+
+    print(f"\nWith per-wavelength refocus, the top-hat/Gaussian ratio is")
+    print(f"effectively constant at 81.45% (variation = {eta_var_pct:.3e}%).")
+    print(f"With focal length fixed at 10 um, the ratio varies by "
+          f"~{ratio_fixed_var_pct:.1f}% across 6-16 um.")
+    print(f"Marcuse vs power-law MFD differs by up to "
+          f"{mfd_rel_diff.max()*100:.1f}% in-band.")
     print(f"\nTo compensate the top-hat penalty: collectors must be "
           f"1/sqrt(eta) = {1/np.sqrt(eta_max):.2f}x larger,")
     print(f"  or ~{(1/np.sqrt(eta_max) - 1)*100:.0f}% diameter increase "

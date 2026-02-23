@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """
-LIFE E2E Monte Carlo â€” Merged Module
+LIFE E2E Monte Carlo — Merged Module
 ======================================
-Author:  Victor Huarcaya (University of Bern)
+Author:  Victor Huarcaya
 Date:    February 2026
 
 Merged from:
   - e2e_monte_carlo_v2.py  (computation engine, 832 lines)
   - e2e_monte_carlo_v3.py  (figure generator, 457 lines)
-
-Archive note:
-  e2e_monte_carlo_fixed.py is DEPRECATED and fully superseded by this file.
 
 Engine (from MC v2):
   OpticalSurface dataclass, build_surface_catalogue(), compute_throughput(),
@@ -29,20 +26,20 @@ Module 3 analytical functions imported from m3_null_error_propagation.py.
 
 Wavelength convention
 ---------------------
-Internal wavelength unit: **Âµm** (matches material_properties library).
-Module 3 functions expect metres â€” conversion at call boundary.
+Internal wavelength unit: **µm** (matches material_properties library).
+Module 3 functions expect metres — conversion at call boundary.
 
 WFE propagation path:
-  surface WFE â†’ MarÃ©chal coupling â†’ intensity mismatch â†’ null depth
-  Gives quartic N âˆ Ïƒâ´/Î»â´ (fiber-filtered), NOT quadratic ÏƒÂ²/Î»Â² (unfiltered)
+  surface WFE → Maréchal coupling → intensity mismatch → null depth
+  Gives quartic N ∝ σ⁴/λ⁴ (fiber-filtered), NOT quadratic σ²/λ² (unfiltered)
 
 v2.0 engine changes:
   1. Fiber coupling OAP marked post-combination (no null contribution)
   2. Gold reflectivity: tabulated Ordal/Palik data (not Drude)
   3. ZnSe Sellmeier: Tatian 1984 three-term (not Connolly)
-  4. CaFâ‚‚ absorption: coefficient 0.03 (not 0.01)
-  5. BS chromatic OPD: wavelength-dependent substrate (CaFâ‚‚ < 10Âµm, ZnSe >= 10Âµm)
-  6. Per-polarization null computation (exact, not effective Î´Ï†/Î´I)
+  4. CaF₂ absorption: coefficient 0.03 (not 0.01)
+  5. BS chromatic OPD: wavelength-dependent substrate (CaF₂ < 10µm, ZnSe >= 10µm)
+  6. Per-polarization null computation (exact, not effective δφ/δI)
   7. Three null requirement sets (paper, Module 3, Birbacher 2026)
   8. Factored per-realization computation (eliminates WFE-zero code duplication)
   9. Vectorized wavelength loop for performance
@@ -68,10 +65,10 @@ from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional
 
 # ============================================================
-# Library imports â€” ALL material functions from canonical source
+# Library imports — ALL material functions from canonical source
 # ============================================================
 from material_properties import (
-    gold_reflectivity,       # tabulated Ordal/Palik (not Drude)
+    gold_reflectivity,       # tabulated Ordal/Palik
     caf2_sellmeier,          # Li 1980 / Malitson 1963
     caf2_absorption,         # multiphonon edge, coeff 0.03
     znse_sellmeier,          # Tatian 1984 three-term
@@ -81,6 +78,7 @@ from material_properties import (
 # Module 3 analytical functions (expects wavelengths in metres)
 from m3_null_error_propagation import (
     compute_null_budget,
+    differential_wfe_to_intensity_mismatch,
     null_requirement_curve,
 )
 
@@ -115,7 +113,7 @@ class OpticalSurface:
     name : descriptive name
     is_differential : True = exists in one arm only (or different path per arm)
     is_pre_fiber : True = before spatial filter (affects coupling)
-    post_combination : True = after cross-combiner (cannot create arm Î´I)
+    post_combination : True = after cross-combiner (cannot create arm δI)
     CMR : Common-mode rejection (0 = fully differential, 1 = fully common)
     wfe_mean_nm : Mean WFE RMS [nm]
     wfe_sigma_nm : Std dev of WFE manufacturing spread [nm]
@@ -136,17 +134,17 @@ class OpticalSurface:
 def build_surface_catalogue() -> List[OpticalSurface]:
     """Build the complete LIFE combiner surface catalogue.
 
-    WFE values at NICE-demonstrated quality levels (100â€“300 nm RMS).
+    WFE values at NICE-demonstrated quality levels (100–300 nm RMS).
     From Module 4 v2 Table with corrected CMR and post-combination flags.
 
-    Optical train (per Glauser et al. 2024 / paper Â§2.1):
-      Collector â†’ Steering â†’ OAP compressor â†’ Cold pupil â†’ DM â†’
-      Delay line (4Ã—) â†’ Dichroics â†’ APS (3Ã— periscope) â†’
-      Cross-combiner (BS + roof) â†’ MMZ (BSÃ—2 + fold) â†’
-      Fiber coupling OAP â†’ Fiber â†’ Spectrograph
+    Optical train (per Glauser et al. 2024 / paper §2.1):
+      Collector → Steering → OAP compressor → Cold pupil → DM →
+      Delay line (4×) → Dichroics → APS (3× periscope) →
+      Cross-combiner (BS + roof) → MMZ (BS×2 + fold) →
+      Fiber coupling OAP → Fiber → Spectrograph
     """
     surfaces = [
-        # --- Differential surfaces (Tier 1: Î»/97 at 6Âµm) ---
+        # --- Differential surfaces (Tier 1: λ/97 at 6µm) ---
         # These exist in one arm path or have different R/T paths
         OpticalSurface("MMZ beamsplitter 1", True, True, False, 0.30, 200, 50, 1, True),
         OpticalSurface("MMZ beamsplitter 2", True, True, False, 0.30, 200, 50, 1, True),
@@ -158,7 +156,7 @@ def build_surface_catalogue() -> List[OpticalSurface]:
         OpticalSurface("MMZ fold mirror",    True, True, False, 0.00, 100, 25, 1),
 
         # --- Quasi common-mode surfaces (Tier 2) ---
-        OpticalSurface("Delay line mirrors", False, True, False, 0.70, 60, 15, 4),
+        OpticalSurface("Delay line mirrors", False, True, False, 0.70, 100, 25, 4),
 
         # --- Common-mode surfaces (Tier 3) ---
         OpticalSurface("OAP beam compressor",False, True, False, 0.85, 300, 75, 1),
@@ -171,7 +169,7 @@ def build_surface_catalogue() -> List[OpticalSurface]:
 
         # --- Post-combination surfaces (cannot affect null) ---
         # Fiber coupling OAP sits AFTER cross-combiner: both arms already combined.
-        # WFE here degrades throughput equally but cannot create arm Î´I.
+        # WFE here degrades throughput equally but cannot create arm δI.
         OpticalSurface("Fiber coupling OAP", False, True, True, 0.85, 300, 75, 1),
     ]
     return surfaces
@@ -187,7 +185,7 @@ def compute_throughput(wavelength_um: np.ndarray,
 
     Parameters
     ----------
-    wavelength_um : wavelengths [Âµm]
+    wavelength_um : wavelengths [µm]
     eta_coupling : fiber coupling efficiency (degraded by WFE)
 
     Returns
@@ -197,11 +195,12 @@ def compute_throughput(wavelength_um: np.ndarray,
     # Gold mirror reflectivity (flight quality, tabulated)
     R_gold = gold_reflectivity(wavelength_um, 'flight')
     n_mirrors = 20  # reconciled with paper optical train
-    # Count: 1 collector + 1 steering + 1 OAP + 1 DM + 4 delay + 3 APS
-    #        + 1 MMZ fold + 1 fiber OAP = 20 reflective gold surfaces
+    # Count: 1 collector + 1 steering + 2 pol comp + 1 OAP + 1 DM
+    # + 4 delay + 3 APS + 1 MMZ fold + 2 cross-comb roof
+    # + 1 fiber OAP + 3 spectrograph = 20 reflective gold surfaces
     T_mirrors = R_gold ** n_mirrors
 
-    # BS substrate transmission (multi-band: CaFâ‚‚ < 10 Âµm, ZnSe >= 10 Âµm)
+    # BS substrate transmission (multi-band: CaF₂ < 10 µm, ZnSe >= 10 µm)
     T_bs = np.ones_like(wavelength_um)
     mask_short = wavelength_um < 10.0
     mask_long = ~mask_short
@@ -248,9 +247,9 @@ def null_depth_exact(delta_phi: np.ndarray,
                      delta_I: np.ndarray) -> np.ndarray:
     """Exact null depth formula (Birbacher+2026 Appendix A.1 / Serabyn 2000).
 
-    N = [1 âˆ’ âˆš(1 âˆ’ Î´IÂ²) cos(Î´Ï†)] / [1 + âˆš(1 âˆ’ Î´IÂ²)]
+    N = [1 − √(1 − δI²) cos(δφ)] / [1 + √(1 − δI²)]
 
-    Valid for arbitrarily large errors. Reduces to Â¼(Î´Ï†Â² + Î´IÂ²) for small errors.
+    Valid for arbitrarily large errors. Reduces to ¼(δφ² + δI²) for small errors.
     """
     delta_I_clipped = np.clip(np.abs(delta_I), 0, 0.9999)
     sqrt_term = np.sqrt(1 - delta_I_clipped**2)
@@ -265,7 +264,7 @@ def null_depth_per_polarization(delta_phi: np.ndarray,
     """Compute null depth averaging over both polarizations (Birbacher Eq. 3).
 
     Computes N_s and N_p separately using exact formula, then averages.
-    More accurate than effective Î´Ï†/Î´I approach at large polarization mismatch.
+    More accurate than effective δφ/δI approach at large polarization mismatch.
 
     Parameters
     ----------
@@ -274,10 +273,10 @@ def null_depth_per_polarization(delta_phi: np.ndarray,
     delta_phi_sp : s-p differential phase [rad]
     delta_I_sp : s-p differential intensity mismatch [dimensionless]
     """
-    # s-polarization: Î´Ï†_s = Î´Ï† + Î´Ï†_sp/2, Î´I_s = Î´I + Î´I_sp/2
+    # s-polarization: δφ_s = δφ + δφ_sp/2, δI_s = δI + δI_sp/2
     N_s = null_depth_exact(delta_phi + delta_phi_sp / 2,
                            delta_I + delta_I_sp / 2)
-    # p-polarization: Î´Ï†_p = Î´Ï† âˆ’ Î´Ï†_sp/2, Î´I_p = Î´I âˆ’ Î´I_sp/2
+    # p-polarization: δφ_p = δφ − δφ_sp/2, δI_p = δI − δI_sp/2
     N_p = null_depth_exact(delta_phi - delta_phi_sp / 2,
                            np.abs(delta_I - delta_I_sp / 2))
     return 0.5 * (N_s + N_p)
@@ -288,14 +287,14 @@ def bs_chromatic_opd(wavelength_um: np.ndarray,
                      lambda_ref_um: float = 10.0) -> np.ndarray:
     """Chromatic OPD from BS thickness mismatch with multi-band substrates.
 
-    Uses CaFâ‚‚ for Î» < 10 Âµm, ZnSe for Î» â‰¥ 10 Âµm (matching LIFE architecture).
-    Î´OPD(Î») = [n_substrate(Î») âˆ’ n_substrate(Î»_ref)] Ã— Î”d
+    Uses CaF₂ for λ < 10 µm, ZnSe for λ ≥ 10 µm (matching LIFE architecture).
+    δOPD(λ) = [n_substrate(λ) − n_substrate(λ_ref)] × Δd
 
     Parameters
     ----------
-    wavelength_um : wavelengths [Âµm]
-    delta_d_um : BS thickness mismatch [Âµm]
-    lambda_ref_um : compensator reference wavelength [Âµm]
+    wavelength_um : wavelengths [µm]
+    delta_d_um : BS thickness mismatch [µm]
+    lambda_ref_um : compensator reference wavelength [µm]
 
     Returns
     -------
@@ -313,7 +312,7 @@ def bs_chromatic_opd(wavelength_um: np.ndarray,
 
     if np.any(mask_long):
         n_lam = znse_sellmeier(wavelength_um[mask_long])
-        # ZnSe compensator referenced at 10 Âµm
+        # ZnSe compensator referenced at 10 µm
         n_ref_znse = znse_sellmeier(np.array([lambda_ref_um]))[0]
         delta_opd_nm[mask_long] = (n_lam - n_ref_znse) * delta_d_um * 1000
 
@@ -385,7 +384,8 @@ def compute_single_realization(
     # ---- STEP 1: Draw surface WFEs (once per realization) ----
     surface_wfes = []
     for s in surfaces:
-        wfe = np.abs(rng.normal(s.wfe_mean_nm, s.wfe_sigma_nm))
+        wfe = np.clip(np.abs(rng.normal(s.wfe_mean_nm, s.wfe_sigma_nm)),
+              0, s.wfe_mean_nm + 3 * s.wfe_sigma_nm)
         wfe_total = wfe * np.sqrt(s.count)  # RSS for multi-surface groups
         surface_wfes.append((s, wfe_total))
 
@@ -396,7 +396,7 @@ def compute_single_realization(
     delta_I_draw = np.abs(rng.normal(delta_I_static, sigma_delta_I))
 
     # ---- STEP 4: Per-wavelength computations (vectorizable) ----
-    lam_nm = wavelengths_um * 1000  # Âµm â†’ nm
+    lam_nm = wavelengths_um * 1000  # µm → nm
 
     # Accumulate WFE for each beam at all wavelengths simultaneously
     sigma_sq_beam1 = np.zeros(n_wav)
@@ -409,7 +409,7 @@ def compute_single_realization(
         # Post-combination surfaces degrade throughput but not null
         if s.post_combination:
             # These surfaces affect both beams equally after combination.
-            # They degrade coupling (throughput) but cannot create arm Î´I.
+            # They degrade coupling (throughput) but cannot create arm δI.
             # We'll add them to a separate "throughput WFE" accumulator below.
             continue
 
@@ -435,8 +435,8 @@ def compute_single_realization(
     sigma_beam1 = np.sqrt(sigma_sq_beam1)
     sigma_beam2 = np.sqrt(sigma_sq_beam2)
 
-    # ---- STEP 5: MarÃ©chal coupling per beam (THE CORE FIX) ----
-    # Î·_i = Î·â‚€ Ã— exp(âˆ’(2Ï€Ïƒ_i/Î»)Â²)
+    # ---- STEP 5: Maréchal coupling per beam (THE CORE FIX) ----
+    # η_i = η₀ × exp(−(2πσ_i/λ)²)
     marechal_1 = (2 * np.pi * sigma_beam1 / lam_nm)**2
     marechal_2 = (2 * np.pi * sigma_beam2 / lam_nm)**2
 
@@ -487,12 +487,12 @@ def run_monte_carlo(N_realizations: int = 100000,
                     seed: int = 42,
                     verbose: bool = True,
                     zero_wfe: bool = False) -> dict:
-    """Full end-to-end Monte Carlo combining Modules 1â€“4.
+    """Full end-to-end Monte Carlo combining Modules 1–4.
 
     Parameters
     ----------
-    N_realizations : number of MC draws (paper uses 10âµ)
-    wavelengths_um : evaluation wavelengths [Âµm]
+    N_realizations : number of MC draws (paper uses 10⁵)
+    wavelengths_um : evaluation wavelengths [µm]
     seed : RNG seed for reproducibility
     verbose : print summary tables
     zero_wfe : if True, set all surface WFEs to zero (for Module 3 validation)
@@ -518,7 +518,7 @@ def run_monte_carlo(N_realizations: int = 100000,
     opd_sigma_nm = 1.2          # OPD RMS fluctuation [nm]
     delta_I_static = 0.0043     # Static intensity mismatch (0.43%, NICE)
     sigma_delta_I = 0.0043      # Intensity mismatch drift RMS (0.43%)
-    delta_d_bs_um = 0.1         # BS thickness mismatch [Âµm]
+    delta_d_bs_um = 0.1         # BS thickness mismatch [µm]
     pol_phase_deg = 0.15        # Polarization phase mismatch [deg]
     pol_intensity = 0.003       # Polarization intensity mismatch (0.3%)
     eta_tophat = 0.8145         # Ideal top-hat coupling (Module 1)
@@ -594,15 +594,15 @@ def _print_summary(results: dict) -> None:
     n_wav = len(wavelengths_um)
 
     print("=" * 110)
-    print("LIFE E2E MONTE CARLO â€” MERGED MODULE")
+    print("LIFE E2E MONTE CARLO — MERGED MODULE")
     print(f"N_realizations = {params['N_realizations']}, "
           f"zero_wfe = {params['zero_wfe']}")
     print("=" * 110)
     print()
 
     # --- Main statistics table ---
-    header = (f"{'Î» [Âµm]':>8} | {'N_mean':>12} | {'N_median':>12} | "
-              f"{'N_95%':>12} | {'T_mean':>8} | {'Î·_mean':>8}")
+    header = (f"{'λ [µm]':>8} | {'N_mean':>12} | {'N_median':>12} | "
+              f"{'N_95%':>12} | {'T_mean':>8} | {'η_mean':>8}")
     print(header)
     print("-" * 80)
 
@@ -618,7 +618,7 @@ def _print_summary(results: dict) -> None:
     # --- Pass rates against all three requirement sets ---
     print()
     print("--- Pass Rates P(N < N_req) by Requirement Source ---")
-    header = f"{'Î» [Âµm]':>8}"
+    header = f"{'λ [µm]':>8}"
     for name in req_sets:
         header += f" | {name:>15}"
     print(header)
@@ -642,17 +642,17 @@ def _print_summary(results: dict) -> None:
 
     idx = {lam: j for j, lam in enumerate(wavelengths_um)}
 
-    # Check 1: N_mean at 10 Âµm
+    # Check 1: N_mean at 10 µm
     if 10.0 in idx:
         N10 = np.mean(null_depths[:, idx[10.0]])
         if params['zero_wfe']:
-            expected = "~1.3Ã—10â»âµ (Module 3 analytical)"
+            expected = "~1.3×10⁻⁵ (Module 3 analytical)"
             in_range = 5e-6 <= N10 <= 5e-5
         else:
-            expected = "3Ã—10â»âµ to 5Ã—10â»â´ (Module 3 + Module 4 WFE)"
+            expected = "3×10⁻⁵ to 5×10⁻⁴ (Module 3 + Module 4 WFE)"
             in_range = 3e-5 <= N10 <= 5e-4
-        status = "âœ“ PASS" if in_range else "âœ— FAIL"
-        print(f"[{status}] N_mean at 10 Âµm = {N10:.3e}  (expected: {expected})")
+        status = "✓ PASS" if in_range else "✗ FAIL"
+        print(f"[{status}] N_mean at 10 µm = {N10:.3e}  (expected: {expected})")
 
     # Check 2: N(6)/N(10) ratio
     if 6.0 in idx and 10.0 in idx:
@@ -660,18 +660,18 @@ def _print_summary(results: dict) -> None:
         N10 = np.mean(null_depths[:, idx[10.0]])
         ratio = N6 / N10
         in_range = 2 <= ratio <= 30
-        status = "âœ“ PASS" if in_range else "âœ— FAIL"
+        status = "✓ PASS" if in_range else "✗ FAIL"
         pure_theory = (10.0/6.0)**4
         print(f"[{status}] N(6)/N(10) = {ratio:.1f}  "
-              f"(pure Î»â»â´: {pure_theory:.1f}; range 2â€“30 acceptable)")
+              f"(pure λ⁻⁴: {pure_theory:.1f}; range 2–30 acceptable)")
 
-    # Check 3: Throughput at 10 Âµm
+    # Check 3: Throughput at 10 µm
     if 10.0 in idx:
         T10 = np.mean(throughputs[:, idx[10.0]]) * 100
         in_range = 3.0 <= T10 <= 12.0
-        status = "âœ“ PASS" if in_range else "âœ— FAIL"
-        print(f"[{status}] T at 10 Âµm = {T10:.2f}%  "
-              f"(Module 2 predicts 7.0â€“8.1% PCE for ideal coupling)")
+        status = "✓ PASS" if in_range else "✗ FAIL"
+        print(f"[{status}] T at 10 µm = {T10:.2f}%  "
+              f"(Module 2 predicts 7.0–8.1% PCE for ideal coupling)")
 
     # Check 4: Wavelength scaling
     if 10.0 in idx and 16.0 in idx:
@@ -679,9 +679,9 @@ def _print_summary(results: dict) -> None:
         N16 = np.mean(null_depths[:, idx[16.0]])
         ratio = N10 / N16
         in_range = 1 <= ratio <= 15
-        status = "âœ“ PASS" if in_range else "âœ— FAIL"
+        status = "✓ PASS" if in_range else "✗ FAIL"
         print(f"[{status}] N(10)/N(16) = {ratio:.1f}  "
-              f"(pure Î»â»â´: {(16./10.)**4:.1f}; range 1â€“15 acceptable)")
+              f"(pure λ⁻⁴: {(16./10.)**4:.1f}; range 1–15 acceptable)")
 
     # --- Technology gap assessment ---
     print()
@@ -692,8 +692,8 @@ def _print_summary(results: dict) -> None:
         N_req = birbacher_reqs.get(lam, 1e-5)
         gap = N_mean / N_req
         surface_factor = gap**(1/4)
-        print(f"Î» = {lam:5.1f} Âµm: N_mean/N_req = {gap:6.1f}Ã—, "
-              f"surface quality improvement needed: {surface_factor:.2f}Ã—")
+        print(f"λ = {lam:5.1f} µm: N_mean/N_req = {gap:6.1f}×, "
+              f"surface quality improvement needed: {surface_factor:.2f}×")
 
 
 def run_wfe_zero_validation(N_check: int = 5000,
@@ -731,8 +731,8 @@ def run_wfe_zero_validation(N_check: int = 5000,
             if N_analytical is not None:
                 ratio = N_mc / N_analytical
                 in_range = 0.3 <= ratio <= 3.0
-                status = "âœ“ PASS" if in_range else "âœ— FAIL"
-                print(f"[{status}] Î»={lam:5.1f} Âµm: MC(WFE=0) = {N_mc:.3e}, "
+                status = "✓ PASS" if in_range else "✗ FAIL"
+                print(f"[{status}] λ={lam:5.1f} µm: MC(WFE=0) = {N_mc:.3e}, "
                       f"Mod3 = {N_analytical:.3e}, ratio = {ratio:.2f}")
 
     return results
@@ -745,9 +745,9 @@ def run_wfe_zero_validation(N_check: int = 5000,
 def print_bugfix_comparison(results: dict) -> None:
     """Print comparison of v2 results with the old buggy (WFE-as-phase) version.
 
-    The old buggy code treated WFE as direct phase variance (ÏƒÂ²/Î»Â²) instead of
-    the correct coupling â†’ Î´I pathway (Ïƒâ´/Î»â´). This caused N(6Âµm) â‰ˆ 0.2,
-    474Ã— larger than N(10Âµm), when the correct ratio should be ~6â€“10Ã—.
+    The old buggy code treated WFE as direct phase variance (σ²/λ²) instead of
+    the correct coupling → δI pathway (σ⁴/λ⁴). This caused N(6µm) ≈ 0.2,
+    474× larger than N(10µm), when the correct ratio should be ~6–10×.
     """
     old_buggy = {
         6.0:  {'N_mean': 1.95e-1, 'T_mean': 9.7e-2, 'eta': 50.9},
@@ -759,9 +759,9 @@ def print_bugfix_comparison(results: dict) -> None:
 
     print()
     print("=" * 90)
-    print("COMPARISON: OLD (BUGGY WFE-AS-PHASE) vs CORRECTED (COUPLINGâ†’Î´I)")
+    print("COMPARISON: OLD (BUGGY WFE-AS-PHASE) vs CORRECTED (COUPLING→δI)")
     print("=" * 90)
-    print(f"{'Î» [Âµm]':>8} | {'Old N_mean':>12} | {'New N_mean':>12} | "
+    print(f"{'λ [µm]':>8} | {'Old N_mean':>12} | {'New N_mean':>12} | "
           f"{'Improvement':>12} | {'Old T':>8} | {'New T':>8}")
     print("-" * 80)
 
@@ -778,7 +778,7 @@ def print_bugfix_comparison(results: dict) -> None:
         improvement = old_N / new_N if new_N > 0 else float('nan')
 
         print(f"{lam:8.1f} | {old_N:12.3e} | {new_N:12.3e} | "
-              f"{improvement:11.1f}Ã— | {old_T*100:7.2f}% | {new_T*100:7.2f}%")
+              f"{improvement:11.1f}× | {old_T*100:7.2f}% | {new_T*100:7.2f}%")
 
 
 # ============================================================
@@ -807,9 +807,43 @@ def get_analytical_reference():
 
     Note: compute_null_budget() expects wavelengths in metres.
     """
-    wavelengths_m = np.array([6, 8, 10, 12, 16]) * 1e-6  # Âµm â†’ m
+    wavelengths_m = np.array([6, 8, 10, 12, 16]) * 1e-6  # µm → m
     budget = compute_null_budget(wavelengths_m)
     return dict(zip([6.0, 8.0, 10.0, 12.0, 16.0], budget['N_total']))
+
+
+def get_surface_only_analytical_reference(wavelengths_um: np.ndarray = None):
+    """Analytical surface-only null (Module 4-consistent per-surface sum).
+
+    This excludes non-surface terms (OPD, static intensity, polarization) and
+    sums only pre-fiber, pre-combination surface WFE contributions at nominal
+    quality.
+    """
+    if wavelengths_um is None:
+        wavelengths_um = np.array([6.0, 8.0, 10.0, 12.0, 16.0], dtype=float)
+
+    surfaces = build_surface_catalogue()
+    ref = {}
+
+    for lam_um in wavelengths_um:
+        lam_m = lam_um * 1e-6
+        N_sum = 0.0
+        for s in surfaces:
+            if (not s.is_pre_fiber) or s.post_combination:
+                continue
+
+            # Per-type WFE (RSS for grouped surfaces, as in Module 4).
+            wfe_total_m = s.wfe_mean_nm * np.sqrt(s.count) * 1e-9
+            wfe_diff_m = wfe_total_m * (1.0 - s.CMR)
+
+            dI_wfe = float(np.atleast_1d(
+                differential_wfe_to_intensity_mismatch(wfe_diff_m, lam_m)
+            )[0])
+            N_sum += 0.25 * dI_wfe**2
+
+        ref[float(lam_um)] = N_sum
+
+    return ref
 
 
 # ============================================================
@@ -822,7 +856,7 @@ def generate_figure_11(results, analytical):
     from the FULL surface-accumulation Monte Carlo.
 
     Shows mean, median, 95th percentile, requirement, and analytical
-    reference at Î» = 6, 10, 16 Âµm.
+    reference at λ = 6, 10, 16 µm.
     """
     print("\n--- Generating Figure 11: MC null depth distributions ---")
 
@@ -879,7 +913,7 @@ def generate_figure_11(results, analytical):
 
         # Print summary
         gap = N_mean / N_req
-        print(f"  {lam:.0f} Âµm: Mean={N_mean:.2e}, Median={N_median:.2e}, "
+        print(f"  {lam:.0f} µm: Mean={N_mean:.2e}, Median={N_median:.2e}, "
               f"95th={N_p95:.2e}, Req={N_req:.1e}, Gap={gap:.1f}x")
         if N_analytical:
             print(f"         Analytical={N_analytical:.2e}, "
@@ -963,7 +997,7 @@ def generate_figure_12(results):
 
     # Print pass rates
     print("\n  Pass rates P(N < N_req):")
-    print(f"  {'Î» [Âµm]':>8} {'Paper req':>12} {'Birbacher':>12}")
+    print(f"  {'λ [µm]':>8} {'Paper req':>12} {'Birbacher':>12}")
     print(f"  {'-'*36}")
     for j, lam in enumerate(wavelengths):
         N_col = null_depths[:, j]
@@ -976,7 +1010,7 @@ def generate_figure_13(results):
     """
     Paper Figure 13: Two-panel throughput figure.
       Left:  PCE distribution across wavelengths
-      Right: Fiber coupling distribution (MarÃ©chal degradation)
+      Right: Fiber coupling distribution (Maréchal degradation)
     """
     print("\n--- Generating Figure 13: Throughput distributions ---")
 
@@ -1036,7 +1070,7 @@ def generate_figure_13(results):
 
     # Print summary
     print("\n  Throughput summary:")
-    print(f"  {'Î» [Âµm]':>8} {'PCE mean':>10} {'PCE med':>10} {'Î· mean':>10}")
+    print(f"  {'λ [µm]':>8} {'PCE mean':>10} {'PCE med':>10} {'η mean':>10}")
     print(f"  {'-'*42}")
     for j, lam in enumerate(wavelengths):
         T_mean = np.mean(throughputs[:, j]) * 100
@@ -1049,7 +1083,7 @@ def generate_figure_13(results):
 # SECTION 11: Cross-Validation & Technology Gap Tables (from MC v3)
 # ============================================================
 
-def print_cross_validation(results, analytical):
+def print_cross_validation(results, analytical, wfe_zero_results=None):
     """Print cross-module consistency check (paper Table 7)."""
     print("\n" + "=" * 80)
     print("CROSS-MODULE CONSISTENCY VALIDATION (Paper Table 7)")
@@ -1058,39 +1092,59 @@ def print_cross_validation(results, analytical):
     wavelengths = results['wavelengths']
     null_depths = results['null_depths']
     throughputs = results['throughputs']
-    coupling_effs = results['coupling_effs']
+    surface_analytical = get_surface_only_analytical_reference(wavelengths)
+
+    # If WFE-zero results were not provided by the caller, compute a compact
+    # validation sample here so the table remains self-consistent.
+    if wfe_zero_results is None:
+        wfe_zero_results = run_monte_carlo(
+            N_realizations=5000,
+            wavelengths_um=wavelengths,
+            seed=123,
+            verbose=False,
+            zero_wfe=True,
+        )
 
     print(f"\n  {'Quantity':<30} {'Analytical':>14} {'MC Mean':>14} {'Note':>10}")
     print(f"  {'-'*72}")
 
-    # Î·â‚€ (ideal top-hat)
-    print(f"  {'Î·â‚€ (ideal top-hat)':<30} {'81.45%':>14} {'81.45%':>14} {'Exact':>10}")
+    # η₀ (ideal top-hat)
+    print(f"  {'η₀ (ideal top-hat)':<30} {'81.45%':>14} {'81.45%':>14} {'Exact':>10}")
 
-    # PCE at 10 Âµm
+    # PCE at 10 µm
     j10 = list(wavelengths).index(10.0)
     T_mc = np.mean(throughputs[:, j10]) * 100
-    print(f"  {'PCE at 10 Âµm':<30} {'7.3%':>14} {T_mc:13.1f}% {'<5%':>10}")
+    T_anal = 7.1
+    pce_delta_pct = abs(T_mc - T_anal) / max(T_anal, 1e-30) * 100
+    pce_note = f"{pce_delta_pct:.1f}% {'lower' if T_mc < T_anal else 'higher'}"
+    print(f"  {'PCE at 10 µm':<30} {f'{T_anal:.1f}%':>14} {T_mc:13.1f}% {pce_note:>10}")
 
-    # Null at WFE=0, 10 Âµm
+    # Null at WFE=0, 10 µm
     N_anal_10 = analytical.get(10.0, 0)
-    N_mc_10 = np.mean(null_depths[:, j10])
-    print(f"  {'Null at WFE=0, 10 Âµm':<30} {N_anal_10:14.1e} {N_anal_10:14.1e} {'<1%':>10}")
+    j10_wfe0 = list(wfe_zero_results['wavelengths']).index(10.0)
+    N_mc_wfe0 = np.mean(wfe_zero_results['null_depths'][:, j10_wfe0])
+    n_delta_pct = abs(N_mc_wfe0 - N_anal_10) / max(N_anal_10, 1e-30) * 100
+    n_note = f"{n_delta_pct:.0f}% {'lower' if N_mc_wfe0 < N_anal_10 else 'higher'}"
+    print(f"  {'Null at WFE=0, 10 µm':<30} {N_anal_10:14.1e} {N_mc_wfe0:14.1e} {n_note:>10}")
 
-    # Surface null at 6, 10, 16 Âµm
+    # Surface null at 6, 10, 16 µm
+    surface_ratios = []
     for lam in [6.0, 10.0, 16.0]:
         j = list(wavelengths).index(lam)
-        N_anal = analytical.get(lam, 0)
+        N_anal = surface_analytical.get(lam, 0)
         N_mc = np.mean(null_depths[:, j])
         ratio = N_mc / N_anal if N_anal > 0 else float('inf')
+        surface_ratios.append(ratio)
         note = f'{ratio:.1f}x'
-        print(f"  {'Surface null at %.0f Âµm' % lam:<30} "
+        print(f"  {'Surface null at %.0f µm' % lam:<30} "
               f"{N_anal:14.1e} {N_mc:14.1e} {note:>10}")
 
     print()
-    print("  â€  MC mean exceeds analytical due to Jensen's inequality:")
-    print("    E[Ïƒâ´] > E[Ïƒ]â´ when WFEs are drawn from distributions")
-    print("    with non-zero variance. Enhancement factor â‰ˆ 9-12Ã—")
-    print("    for half-normal draws with CV â‰ˆ 1.")
+    print("  † Surface-only MC mean exceeds per-surface analytical sum due to")
+    print("    nonlinear multi-surface accumulation and random-walk residuals.")
+    if surface_ratios:
+        print("    Enhancement factor in this run: "
+              f"{min(surface_ratios):.1f}–{max(surface_ratios):.1f}×.")
 
 
 def print_technology_gap(results):
@@ -1106,8 +1160,8 @@ def print_technology_gap(results):
     req_paper = req_sets['paper']
     req_birb = req_sets['birbacher']
 
-    print(f"\n  {'Î» [Âµm]':>8} {'N_mean':>12} {'Req(paper)':>12} {'Gap':>8} "
-          f"{'Req(B+26)':>12} {'Gap':>8} {'Ïƒ improve':>12}")
+    print(f"\n  {'λ [µm]':>8} {'N_mean':>12} {'Req(paper)':>12} {'Gap':>8} "
+          f"{'Req(B+26)':>12} {'Gap':>8} {'σ improve':>12}")
     print(f"  {'-'*80}")
 
     for j, lam in enumerate(wavelengths):
@@ -1121,7 +1175,7 @@ def print_technology_gap(results):
               f"{N_b:12.1e} {gap_b:7.1f}x {sigma_improve:11.2f}x")
 
     print()
-    print("  Ïƒ improve = gap^(1/4): surface quality improvement factor needed")
+    print("  σ improve = gap^(1/4): surface quality improvement factor needed")
     print("  Values > 1 indicate technology gap; < 1 indicates margin")
 
 
@@ -1133,14 +1187,14 @@ if __name__ == '__main__':
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print("=" * 80)
-    print("LIFE E2E Monte Carlo â€” Merged Module")
+    print("LIFE E2E Monte Carlo — Merged Module")
     print("  Engine:  e2e_monte_carlo_v2.py")
     print("  Figures: e2e_monte_carlo_v3.py")
     print("  Archive: e2e_monte_carlo_fixed.py is DEPRECATED")
     print("=" * 80)
     print()
 
-    # Suppress CaFâ‚‚ warning at reference wavelength
+    # Suppress CaF₂ warning at reference wavelength
     warnings.filterwarnings('ignore', message='.*CaF.*Sellmeier.*')
 
     # 1. Run the full MC with surface WFE
@@ -1155,10 +1209,10 @@ if __name__ == '__main__':
     generate_figure_13(results)
 
     # 4. WFE-zero validation against Module 3
-    run_wfe_zero_validation(N_check=5000, seed=123, verbose=True)
+    wfe_zero_results = run_wfe_zero_validation(N_check=5000, seed=123, verbose=True)
 
     # 5. Cross-validation and technology gap tables
-    print_cross_validation(results, analytical)
+    print_cross_validation(results, analytical, wfe_zero_results=wfe_zero_results)
     print_technology_gap(results)
 
     # 6. Bug fix comparison

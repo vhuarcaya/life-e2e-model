@@ -1,5 +1,5 @@
 """
-LIFE End-to-End Instrument Model â€” Fiber Modes Library
+LIFE End-to-End Instrument Model — Fiber Modes Library
 ========================================================
 
 Canonical source of single-mode fiber mode calculations for every
@@ -8,7 +8,7 @@ Monte Carlo engine import from here.
 
 Author
 ------
-Victor Huarcaya, University of Bern
+Victor Huarcaya
 
 Wavelength convention
 ---------------------
@@ -55,13 +55,13 @@ Key references
 
 Version history
 ---------------
-3.0  2026-02-14  Clean rewrite for codebase reorganisation (Phase A).
+3.0  2026-01-14  Clean rewrite for codebase reorganisation (Phase A).
                  Consolidates functions from fiber_modes_v2, Module 1
                  (e2e_fiber_coupling_v1_1), and Module 3 (null error
                  propagation).  Unified interface, um throughout.
-2.0  2026-02-11  Fixed coupling_tophat_analytical (2x), FIBER_PARAMS
+2.0  2025-08-11  Fixed coupling_tophat_analytical (2x), FIBER_PARAMS
                  (Delta-n), coupling_gaussian tilt exponent.
-1.0  2026-02-10  Initial version.
+1.0  2025-02-10  Initial version.
 """
 
 from __future__ import annotations

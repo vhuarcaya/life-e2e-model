@@ -2,7 +2,7 @@
 LIFE End-to-End Wavefront Propagation Study -- Module 4: Surface Sensitivity Ranking
 =====================================================================================
 
-Author:  Victor Huarcaya (University of Bern)
+Author:  Victor Huarcaya
 Version: 3.0  (codebase reorganisation Phase A, Step 5)
 Date:    2026-02-14
 
@@ -34,7 +34,6 @@ Physics references:
     v3.0 changes vs v2.0:
       - null_requirement_curve() imported from m3_null_error_propagation
         (removed embedded copy)
-      - Unicode replaced with LaTeX/ASCII in print/plot labels
 
     v2.0 changes from v1.0:
       1. FIXED quality requirement inversion: (4N)^{1/4} -> (16N)^{1/4}
@@ -568,10 +567,10 @@ def compute_surface_sensitivities(surfaces, wavelengths=None):
                 null_contribution[lam_key] = 0.0
                 null_deriv[lam_key] = 0.0
 
-        # Figure of merit: null depth contribution at 6 um (most stringent)
-        null_at_6 = null_contribution.get('6', 0.0)
+        # Figure of merit: null depth contribution at 10 um
+        # (matches the ranking table reference wavelength in the paper).
         null_at_ref = null_contribution.get('10', 0.0)
-        fom = null_at_6
+        fom = null_at_ref
 
         # ----------------------------------------------------------------
         # v2: Corrected quality requirement inversion
@@ -691,7 +690,7 @@ def run_full_analysis():
     # ========================================================================
     # Print ranked table
     # ========================================================================
-    print("\n--- Surface Sensitivity Ranking (by null contribution at 6 um) ---")
+    print("\n--- Surface Sensitivity Ranking (by null contribution at 10 um) ---")
     print(f"{'Rank':>4s}  {'Surface':>30s}  {'Diff?':>5s}  {'Pre-C':>5s}  "
           f"{'CMR':>5s}  {'WFE_diff':>8s}  {'dN@6um':>10s}  {'dN@10um':>10s}  "
           f"{'d_eta@10um':>10s}  {'Req':>8s}")

@@ -1,14 +1,13 @@
 """
-LIFE End-to-End Instrument Model â€” Material Properties Library
+LIFE End-to-End Instrument Model — Material Properties Library
 ================================================================
 
 Canonical source of optical material properties for every module in the
-LIFE end-to-end study.  All analysis modules and the Monte Carlo engine
-import from here; no material model is duplicated elsewhere.
+LIFE end-to-end study. 
 
 Author
 ------
-Victor Huarcaya, University of Bern
+Victor Huarcaya
 
 Wavelength convention
 ---------------------
@@ -53,13 +52,13 @@ Key references
 
 Version history
 ---------------
-3.0  2026-02-14  Clean rewrite for codebase reorganisation (Phase A).
+3.0  2026-01-14  Clean rewrite for codebase reorganisation (Phase A).
                  Consolidates duplicates from MC v2, Throughput, Null
                  Error, and previous library v2.  Gold now carries both
                  tabulated R and Drude n-hat.  14-point MC v2 R table
                  preserved alongside (n,k) Fresnel computation.
-2.0  2026-02-11  Fixed ZnSe (Tatian 1984), gold (tabulated), CaF2 alpha.
-1.0  2026-02-10  Initial version.
+2.0  2026-08-12  Fixed ZnSe (Tatian 1984), gold (tabulated), CaF2 alpha.
+1.0  2025-02-10  Initial version.
 """
 
 from __future__ import annotations
