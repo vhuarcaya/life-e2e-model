@@ -75,7 +75,7 @@ These define the valid operating domain. Phase II (Zemax POP validation) will ad
 
 ## Module Architecture
 
-The model consists of **4 analysis modules**, **2 supporting libraries**, and **1 integration engine** (~8,300 lines total):
+The model consists of **4 analysis modules**, **2 supporting libraries**, and **1 integration engine**:
 
 ```
 material_properties.py          fiber_modes.py
