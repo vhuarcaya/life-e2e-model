@@ -51,6 +51,22 @@ v3.0 figure changes:
   - Both requirement sets (this work + Birbacher+2026) shown
   - LaTeX math mode in all plot labels
   - Proper figure numbering matching paper
+
+v3.1 WFE accumulation fix (March 2026):
+  - Replaced sign randomisation of CMR leakage residuals with physically
+    correct identical per-arm accumulation for common-mode surfaces.
+  - Old code: coherently added/subtracted differential residual with random
+    sign → created artificial coupling mismatch even at CV=0 (phantom
+    Jensen enhancement from ~8 common-mode surfaces).
+  - New code: both beams accumulate the full surface σ² identically.
+    For a common-mode surface, both arms see the SAME physical optic →
+    same Maréchal coupling → δI = 0. The CMR decomposition is relevant
+    for the phase/OPD null channel (Module 3 analytical), not the
+    Maréchal coupling channel.
+  - Impact: 6 µm gap reduced from ~140× (driven by irreducible CMR=0
+    differential surfaces + BS differential paths). Core conclusions
+    unchanged: surface WFE dominates, quartic scaling makes improvement
+    achievable.
 """
 
 import os
@@ -425,12 +441,18 @@ def compute_single_realization(
             sigma_sq_beam2 += (common_wfe**2 + diff_wfe**2)
 
         else:
-            # Common-mode: small differential from manufacturing
-            common_wfe = wfe_nm * s.CMR
-            diff_residual = wfe_nm * (1 - s.CMR)
-            sign = rng.choice([-1, 1])
-            sigma_sq_beam1 += (common_wfe + sign * diff_residual * 0.5)**2
-            sigma_sq_beam2 += (common_wfe - sign * diff_residual * 0.5)**2
+            # Common-mode surface: both arms see the SAME physical optic.
+            # In a given realization, this optic has one WFE value (drawn
+            # once in Step 1). Both beams accumulate the full surface σ²
+            # for coupling, yielding identical Maréchal degradation:
+            #   η₁ = η₂ = η₀ exp(−(2πσ/λ)²)  →  δI = 0
+            # Manufacturing CV varies σ between realizations (affects
+            # throughput), but within each realization both arms match.
+            # The CMR decomposition is relevant for the phase/OPD null
+            # channel (handled analytically in Module 3), not for the
+            # Maréchal coupling channel modelled here.
+            sigma_sq_beam1 += wfe_nm**2
+            sigma_sq_beam2 += wfe_nm**2
 
     sigma_beam1 = np.sqrt(sigma_sq_beam1)
     sigma_beam2 = np.sqrt(sigma_sq_beam2)
@@ -519,13 +541,13 @@ def run_monte_carlo(N_realizations: int = 100000,
     delta_I_static = 0.0043     # Static intensity mismatch (0.43%, NICE)
     sigma_delta_I = 0.0043      # Intensity mismatch drift RMS (0.43%)
     delta_d_bs_um = 0.1         # BS thickness mismatch [µm]
-    pol_phase_deg = 0.15        # Polarization phase mismatch [deg]
+    pol_phase_deg = 0.15        # Polarization phase mismatch [deg] # α: rotation mismatch [deg]; δφ_sp = 2α enters the null formula
     pol_intensity = 0.003       # Polarization intensity mismatch (0.3%)
     eta_tophat = 0.8145         # Ideal top-hat coupling (Module 1)
 
     # Precompute
     bs_chromatic_nm = bs_chromatic_opd(wavelengths_um, delta_d_bs_um)
-    delta_phi_sp = np.radians(pol_phase_deg)
+    delta_phi_sp = 2.0 * np.radians(pol_phase_deg)  # δφ_sp = 2α [B26 §3.2]
     delta_I_sp = pol_intensity
 
     # --- Results storage ---
@@ -1141,7 +1163,8 @@ def print_cross_validation(results, analytical, wfe_zero_results=None):
 
     print()
     print("  † Surface-only MC mean exceeds per-surface analytical sum due to")
-    print("    nonlinear multi-surface accumulation and random-walk residuals.")
+    print("    nonlinear multi-surface Maréchal accumulation and manufacturing")
+    print("    variance (Jensen's inequality on quartic null function).")
     if surface_ratios:
         print("    Enhancement factor in this run: "
               f"{min(surface_ratios):.1f}–{max(surface_ratios):.1f}×.")

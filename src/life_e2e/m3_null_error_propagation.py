@@ -3,8 +3,8 @@ LIFE End-to-End Wavefront Propagation Study -- Module 3: Null Depth Error Propag
 ======================================================================================
 
 Author:  Victor Huarcaya
-Version: 3.0  (codebase reorganisation Phase A, Step 4)
-Date:    2026-02-12
+Version: 3.2  (shear fix + version string fixes + sanity check + documentation)
+Date:    2026-03-04
 
 Purpose:
     Compute the mean null depth <N>(lam) across the LIFE science band by
@@ -14,12 +14,13 @@ Purpose:
       <N> = 1/4(  <d_phi>^2 + sigma^2_dphi + 1/4 <d_phi_sp>^2
                 + <dI>^2 + sigma^2_dI + 1/4 <dI_sp>^2  )
 
-    Nine physical error sources are mapped onto the six algebraic slots:
+    Ten physical error sources are mapped onto the six algebraic slots:
 
       Phase (<d_phi>^2):  mean OPD offset + BS chromatic (summed COHERENTLY)
       Phase (sigma^2_dphi):  OPD RMS jitter
       Phase (d_phi_sp):  s-p polarisation phase split from imperfect APS
       Intensity (<dI>^2):  static mismatch + WFE-driven coupling + pointing
+                           + lateral beam shear (RSS combined)
       Intensity (sigma^2_dI):  fluctuating intensity mismatch
       Intensity (dI_sp):  s-p polarisation amplitude split
 
@@ -31,6 +32,51 @@ fiber_modes.py) accept wavelengths in *micrometres*.  Thin private
 wrappers (_caf2_n, _znse_n, _fiber_w_f) perform the m -> um
 conversion at the call site so that all Module 3 physics functions
 remain in metres.
+
+    v3.2 changes vs v3.1:
+      - BUG FIX: shear_rms parameter was accepted by compute_null_budget()
+        and monte_carlo_null() but shear_to_intensity_mismatch() was never
+        called.  Shear contribution is now correctly computed and:
+          * Added to N_total in compute_null_budget() as N_shear
+          * Added to dI_systematic RSS in monte_carlo_null()
+          * Added to the return dict of compute_null_budget()
+          * Added to the summary table row in run_full_analysis()
+        Numerical impact: at NICE params (sigma_shear=0.17 um, w0=D/2=10 mm),
+        dI_shear = (0.17e-6/10e-3)^2 = 2.9e-10 -> N_shear = 7.2e-11.
+        Entirely negligible vs dominant terms (~1e-5), so published results
+        are unaffected.  At LIFE params (sigma_shear=0.1 um), N_shear ~ 2.5e-11.
+      - BUG FIX: Version strings in run_full_analysis() still read "v3.0"
+        after the v3.1 release.  Both print() calls now report "v3.2".
+      - NEW: compute_null_budget() now asserts consistency between the manual
+        term-by-term accumulation and null_depth_birbacher() (the canonical
+        [B26] Eq. 2 implementation), which was previously dead code.  An
+        AssertionError here would indicate a formula regression.
+      - DOCUMENTATION: pointing_to_intensity_mismatch() docstring extended
+        with first-principles derivation of the sqrt(2/pi) prefactor.
+      - DOCUMENTATION: shear_to_intensity_mismatch() w0 convention clarified
+        (1/e^2 Gaussian radius of the beam; D_BEAM/2 for paraxial top-hat).
+      - DOCUMENTATION: bs_thickness_chromatic_opd() documents the slope
+        discontinuity at the 10 um sub-band boundary as a model assumption.
+      - DOCUMENTATION: monte_carlo_null() documents the folded-normal
+        approximation for dI sampling and its impact on distribution shape.
+
+    v3.1 changes vs v3.0:
+      - BUG FIX: polarization_intensity_mismatch() was returning 2*alpha_rad
+        (identical to the phase-error value) instead of the physically measured
+        fractional intensity split dI_sp.  The two quantities have the same
+        units but different physical origins and different numerical values:
+          old (wrong): dI_sp = 2 * radians(0.15 deg) = 5.24e-3
+          new (correct): dI_sp = 0.003 (0.3 % from NICE [B26 Table 4])
+        This produced N_pol_intensity = 1.71e-6 instead of 5.6e-7 (3x error).
+        Since the pol terms are subdominant (~1e-6 vs dominant ~4.6e-6 dI
+        terms), conclusions are unaffected, but Table 4 of the paper must
+        be updated: "Polarisation intensity" row -> 5.6e-7 at all wavelengths.
+      - polarization_intensity_mismatch() now accepts dI_sp_frac directly
+        (a separately measured quantity, NOT derived from pol_angle_deg).
+      - compute_null_budget() gains new parameter: dI_sp_frac (default 0.003).
+      - monte_carlo_null() gains new parameter: dI_sp_frac (default 0.003).
+      - cross_validate() propagates dI_sp_frac through **kwargs unchanged.
+      - All run_full_analysis() call-sites updated with explicit dI_sp_frac.
 
     v3.0 changes vs v2.1:
       - Removed local caf2_refractive_index(), znse_refractive_index(),
@@ -242,6 +288,9 @@ def null_depth_birbacher(
           + \tfrac14 \langle\delta I_{sp}\rangle^2
         \bigr)
 
+    This is the canonical [B26] Eq. 2 implementation and serves as the
+    reference formula for sanity-checking compute_null_budget().
+
     Parameters
     ----------
     dphi_mean  : mean phase error [rad]
@@ -327,6 +376,17 @@ def bs_thickness_chromatic_opd(
     extrapolating CaF2 beyond its 9.7 um Sellmeier validity limit and
     uses ZnSe's well-characterised flat dispersion for the long-wavelength
     sub-band.
+
+    **Model assumption (v3.2 note):**
+    The ``'multiband'`` model applies an independent n(lam_ref) reference for
+    each sub-band material, so the chromatic OPD is forced to zero at
+    lam_ref = 10 um for both CaF2 and ZnSe.  This makes the OPD curve
+    continuous at 10 um but introduces a slope discontinuity (kink) because
+    dn/dlam|_CaF2 != dn/dlam|_ZnSe at 10 um.  Physically this is appropriate
+    if the two sub-band BS elements have independent compensators each
+    corrected at 10 um.  If a single compensator is used across the full band,
+    this model overestimates performance in the transition region.  The kink
+    is visible as a slope discontinuity in Fig. 12b.
 
     Parameters
     ----------
@@ -436,19 +496,32 @@ def polarization_phase_error(
 
 def polarization_intensity_mismatch(
     wavelength: ArrayLike,
-    mismatch_angle_deg: float = 0.15,
+    dI_sp_frac: float = 0.003,
 ) -> NDArray:
-    r"""s-p intensity mismatch from polarisation rotation error.
+    r"""s-p fractional intensity mismatch between polarisation channels.
 
-    For small rotation alpha the projected intensity goes as cos^2(alpha),
-    so the fractional mismatch between s and p channels is
+    This is a directly measured quantity (from the s/p output power ratio
+    after the APS periscope), independent of the phase split.  It is
+    wavelength-independent for a gold-coated geometric APS across 6-16 um.
 
-    .. math::  \delta I_{sp} \approx 2\,\alpha
+    .. math::  \langle\delta I_{sp}\rangle = \text{const}
 
-    Wavelength-independent for a geometric APS.
+    Parameters
+    ----------
+    wavelength  : [m]  (used only for array shaping; value not used)
+    dI_sp_frac  : fractional s-p intensity mismatch [dimensionless, 0-1]
+                  Default 0.003 (0.3 %) from NICE warm-bench [B26 Table 4].
+
+    Notes
+    -----
+    **Do NOT derive this from pol_angle_deg.**  The phase split
+    dphi_sp = 2*alpha (polarization_phase_error) and the intensity split
+    dI_sp are physically distinct quantities that must be measured or
+    specified independently.  Conflating them (passing alpha_rad to both)
+    produces dI_sp = 5.24e-3 instead of 3e-3, a factor ~1.75 error that
+    inflates N_pol_intensity by ~3x (from 5.6e-7 to 1.71e-6).
     """
-    alpha_rad = np.radians(mismatch_angle_deg)
-    return 2.0 * alpha_rad * np.ones_like(
+    return dI_sp_frac * np.ones_like(
         np.atleast_1d(np.asarray(wavelength))
     )
 
@@ -534,11 +607,40 @@ def pointing_to_intensity_mismatch(
         \approx \sqrt{\frac{2}{\pi}}\,
                 \Bigl(\frac{\pi\,w_0\,\sigma_\alpha}{\lambda}\Bigr)^2
 
+    **Derivation:**
+    For a Gaussian beam with 1/e^2 radius w0, the fibre coupling efficiency
+    under a tilt theta is eta(theta) = eta_0 * exp(-(theta/theta_f)^2),
+    where theta_f = lambda/(pi*w0) is the fibre acceptance half-angle
+    [RC01 Eq. 14].  For small tilts (theta << theta_f), expanding to first
+    order in x = (theta/theta_f)^2:  eta ~ eta_0*(1 - x).
+
+    The fractional intensity mismatch between two arms with independent
+    Gaussian pointing errors theta_1, theta_2 ~ N(0, sigma_alpha) is:
+        delta_I = |eta_1 - eta_2| / (eta_1 + eta_2)
+                ~ |x_2 - x_1| / 2 = |theta_2^2 - theta_1^2| / (2*theta_f^2)
+
+    Since theta_1^2 and theta_2^2 are chi-squared(1) variates scaled by
+    sigma_alpha^2, their difference has a variance-gamma distribution.  Its
+    mean absolute value is:
+        E[|x_2^2 - x_1^2|] = 2*sigma_alpha^2 * sqrt(2/pi)
+
+    giving:
+        <|delta_I|> = sqrt(2/pi) * (sigma_alpha / theta_f)^2
+                    = sqrt(2/pi) * (pi * w0 * sigma_alpha / lambda)^2
+
+    which is the implemented expression.
+
     Parameters
     ----------
     sigma_pointing : RMS pointing error per beam [rad]
     wavelength     : [m]
-    w0             : effective beam waist [m]  (D/(2*sqrt(2)) for top-hat)
+    w0             : effective beam 1/e^2 Gaussian radius [m].
+                     Default D_BEAM/(2*sqrt(2)) -- the equivalent Gaussian
+                     waist matching the area of a top-hat of diameter D_BEAM.
+                     Note: shear_to_intensity_mismatch uses w0=D_BEAM/2 (the
+                     physical beam half-diameter).  Both are reasonable
+                     conventions for the respective formulas; see [B24] Table 1
+                     for the adopted NICE values.
     """
     x = (np.pi * w0 * sigma_pointing / np.asarray(wavelength)) ** 2
     return np.sqrt(2.0 / np.pi) * x
@@ -554,6 +656,22 @@ def shear_to_intensity_mismatch(
 
     Approximately wavelength-independent because the focused-spot scale
     and fibre-mode radius both scale with lam, cancelling out.
+
+    Parameters
+    ----------
+    sigma_shear : RMS lateral shear between the two beams [m]
+    w0          : beam 1/e^2 Gaussian radius [m].
+                  Default D_BEAM/2 = 10 mm (physical half-diameter of the
+                  compressed beam in the combiner).  This is the natural
+                  length scale for the shear overlap integral.
+                  Note: pointing_to_intensity_mismatch uses
+                  w0 = D_BEAM/(2*sqrt(2)) for the fibre-acceptance angle
+                  calculation; the different w0 conventions reflect different
+                  physical geometries, not an inconsistency.
+
+    Returns
+    -------
+    dI_shear : fractional intensity mismatch [dimensionless]
     """
     return (sigma_shear / w0) ** 2
 
@@ -569,6 +687,7 @@ def compute_null_budget(
     dI_mean: float = 0.43e-2,
     dI_rms: float = 0.43e-2,
     pol_angle_deg: float = 0.15,
+    dI_sp_frac: float = 0.003,
     bs_delta_d: float = 0.1e-6,
     bs_material: str = 'multiband',
     wfe_diff_rms: float = 50e-9,
@@ -577,7 +696,7 @@ def compute_null_budget(
 ) -> dict:
     r"""Compute the full null depth budget across wavelength.
 
-    Maps nine physical error sources onto the six slots of [B26] Eq. 2:
+    Maps ten physical error sources onto the six slots of [B26] Eq. 2:
 
     **Phase terms** (-> <d_phi>^2, sigma^2_dphi, 1/4 d_phi_sp^2)
       1. Mean OPD offset   }
@@ -590,22 +709,30 @@ def compute_null_budget(
       5. Static mean mismatch }
       6. WFE-driven coupling  } -> RSS-combined into <dI>_total
       7. Pointing coupling    }
-      8. Fluctuating mismatch -> sigma^2_dI
-      9. s-p intensity split  -> 1/4 dI_sp^2
+      8. Lateral beam shear   }
+      9. Fluctuating mismatch -> sigma^2_dI
+     10. s-p intensity split  -> 1/4 dI_sp^2
 
     Parameters
     ----------
     wavelengths   : [m]
     opd_mean      : mean OPD offset from null [m]         (default 0.5 nm)
     opd_rms       : OPD RMS fluctuation [m]               (default 1.2 nm, NICE)
-    dI_mean       : mean intensity mismatch [fractional]   (default 0.43 %, NICE)
-    dI_rms        : intensity mismatch RMS [fractional]    (default 0.43 %, NICE)
-    pol_angle_deg : polarisation rotation mismatch [deg]   (default 0.15 deg)
-    bs_delta_d    : BS glass thickness mismatch [m]        (default 0.1 um)
+    dI_mean       : mean intensity mismatch [fractional]  (default 0.43 %, NICE)
+    dI_rms        : intensity mismatch RMS [fractional]   (default 0.43 %, NICE)
+    pol_angle_deg : polarisation rotation mismatch [deg]  (default 0.15 deg)
+                    Governs the s-p PHASE split only: dphi_sp = 2*alpha.
+    dI_sp_frac    : s-p fractional INTENSITY mismatch [dimensionless]
+                    (default 0.003 = 0.3 %, NICE [B26 Table 4]).
+                    Physically distinct from pol_angle_deg; must be specified
+                    independently (see polarization_intensity_mismatch).
+    bs_delta_d    : BS glass thickness mismatch [m]       (default 0.1 um)
     bs_material   : ``'caf2'``, ``'znse'``, or ``'multiband'`` (default)
-    wfe_diff_rms  : differential WFE between arms [m]      (default 50 nm)
-    pointing_rms  : pointing error RMS [rad]               (default 10 urad)
-    shear_rms     : lateral shear RMS [m]                  (default 0.17 um)
+    wfe_diff_rms  : differential WFE between arms [m]     (default 50 nm)
+    pointing_rms  : pointing error RMS [rad]              (default 10 urad)
+    shear_rms     : lateral shear RMS [m]                 (default 0.17 um)
+                    At NICE params: N_shear ~ 7e-11 (negligible).
+                    At LIFE params (0.1 um): N_shear ~ 2.5e-11 (negligible).
 
     Returns
     -------
@@ -650,18 +777,21 @@ def compute_null_budget(
     # 7. Pointing-driven coupling mismatch
     dI_pointing = pointing_to_intensity_mismatch(pointing_rms, lam)
 
-    # Combined mean intensity mismatch (RSS of independent sources)
-    # RSS is valid because dI contributions are independent and
-    # the null ~ dI^2, so 1/4 * sum(dI_i^2) = sum(1/4 * dI_i^2)
+    # 8. Lateral beam shear (wavelength-independent)
+    dI_shear_val = shear_to_intensity_mismatch(shear_rms)  # scalar
+    dI_shear = dI_shear_val * np.ones_like(lam)
+
+    # Individual intensity-term null contributions (for diagnostic output)
     N_dI_mean_static = 0.25 * dI_static ** 2 * np.ones_like(lam)
     N_wfe = 0.25 * dI_wfe ** 2
     N_pointing = 0.25 * dI_pointing ** 2
+    N_shear = 0.25 * dI_shear ** 2
 
-    # 8. Fluctuating intensity mismatch
+    # 9. Fluctuating intensity mismatch
     N_dI_rms = 0.25 * dI_rms ** 2 * np.ones_like(lam)
 
-    # 9. Polarisation intensity mismatch
-    dI_sp = polarization_intensity_mismatch(lam, pol_angle_deg)
+    # 10. Polarisation intensity mismatch
+    dI_sp = polarization_intensity_mismatch(lam, dI_sp_frac)
     N_pol_intensity = 0.25 * 0.25 * dI_sp ** 2
 
     # ------------------------------------------------------------------
@@ -669,9 +799,41 @@ def compute_null_budget(
     # ------------------------------------------------------------------
     N_total = (N_phase_systematic + N_opd_rms
                + N_pol_phase
-               + N_dI_mean_static + N_wfe + N_pointing
+               + N_dI_mean_static + N_wfe + N_pointing + N_shear
                + N_dI_rms
                + N_pol_intensity)
+
+    # ------------------------------------------------------------------
+    # Sanity check: verify against the canonical null_depth_birbacher()
+    # formula ([B26] Eq. 2).  The manual accumulation above is algebraically
+    # equivalent under RSS additivity; any mismatch here is a formula bug.
+    #
+    # Mapping to Eq. 2 slots:
+    #   dphi_mean  -> dphi_systematic (coherent OPD + BS)
+    #   sigma_dphi -> sigma_dphi
+    #   dphi_sp    -> dphi_sp
+    #   dI_mean    -> RSS of all static intensity sources
+    #   sigma_dI   -> dI_rms (scalar -> broadcast)
+    #   dI_sp      -> dI_sp (from polarization_intensity_mismatch)
+    # ------------------------------------------------------------------
+    dI_mean_total = np.sqrt(dI_static ** 2
+                            + dI_wfe ** 2
+                            + dI_pointing ** 2
+                            + dI_shear ** 2)
+    N_check = null_depth_birbacher(
+        dphi_systematic,
+        sigma_dphi,
+        dphi_sp,
+        dI_mean_total,
+        dI_rms * np.ones_like(lam),
+        dI_sp,
+    )
+    if not np.allclose(N_check, N_total, rtol=1e-9):
+        raise AssertionError(
+            "compute_null_budget internal consistency check FAILED: "
+            "manual accumulation disagrees with null_depth_birbacher(). "
+            f"Max relative error = {np.max(np.abs(N_check - N_total) / N_total):.2e}"
+        )
 
     return {
         'wavelength': lam,
@@ -688,6 +850,7 @@ def compute_null_budget(
         'N_dI_rms': N_dI_rms,
         'N_wfe': N_wfe,
         'N_pointing': N_pointing,
+        'N_shear': N_shear,
         'N_pol_intensity': N_pol_intensity,
     }
 
@@ -704,10 +867,12 @@ def monte_carlo_null(
     dI_mean: float = 0.43e-2,
     dI_rms: float = 0.43e-2,
     pol_angle_deg: float = 0.15,
+    dI_sp_frac: float = 0.003,
     bs_delta_d: float = 0.1e-6,
     bs_material: str = 'multiband',
     wfe_diff_rms: float = 50e-9,
     pointing_rms: float = 10e-6,
+    shear_rms: float = 0.17e-6,
     seed: int = 42,
 ) -> tuple[NDArray, dict]:
     """Monte Carlo simulation of null depth at a single wavelength.
@@ -716,10 +881,45 @@ def monte_carlo_null(
     EXACT (non-Taylor) null depth formula for each realisation, correctly
     combining s and p polarisation channels.
 
+    Parameters
+    ----------
+    wavelength      : [m]
+    N_realizations  : number of MC draws
+    opd_mean        : mean OPD offset [m]                 (default 0.5 nm)
+    opd_rms         : OPD RMS jitter [m]                  (default 1.2 nm)
+    dI_mean         : mean intensity mismatch [frac]      (default 0.43 %)
+    dI_rms          : intensity mismatch RMS [frac]       (default 0.43 %)
+    pol_angle_deg   : polarisation rotation mismatch [deg] (default 0.15)
+                      Governs s-p PHASE split only.
+    dI_sp_frac      : s-p fractional INTENSITY mismatch [frac]
+                      (default 0.003 = 0.3 %, NICE [B26 Table 4]).
+                      Physically distinct from pol_angle_deg.
+    bs_delta_d      : BS thickness mismatch [m]           (default 0.1 um)
+    bs_material     : beamsplitter material model
+    wfe_diff_rms    : differential WFE between arms [m]   (default 50 nm)
+    pointing_rms    : pointing error RMS [rad]            (default 10 urad)
+    shear_rms       : lateral shear RMS [m]               (default 0.17 um)
+    seed            : random seed for reproducibility
+
     Returns
     -------
     N_samples : array of shape (N_realizations,)
     stats     : dict with mean, median, std, p95, p99, min, max
+
+    Notes
+    -----
+    **Intensity sampling (folded-normal approximation):**
+    The total systematic intensity mismatch dI_systematic is treated as the
+    mean of a Gaussian with standard deviation dI_rms, and the absolute value
+    is taken to enforce physical positivity.  When dI_rms ~ dI_systematic
+    (as at NICE operating conditions), ~16% of draws would be negative before
+    folding; abs() reflects these into a positive half-normal tail.
+
+    Impact on moments: abs() preserves E[xi^2] = mu^2 + sigma^2, so the
+    MC mean null depth N ~ dI^2 / 4 matches the analytical value.  However,
+    the distribution shape is slightly non-Gaussian (heavier left tail), and
+    the median is marginally overestimated.  For the LIFE operating regime
+    (dI_systematic >> dI_rms), the folded-normal bias is negligible.
     """
     rng = np.random.default_rng(seed)
 
@@ -755,19 +955,21 @@ def monte_carlo_null(
     dI_point = float(np.atleast_1d(
         pointing_to_intensity_mismatch(pointing_rms, wavelength)
     )[0])
+    dI_shear = float(shear_to_intensity_mismatch(shear_rms))
 
-    # RSS of systematic intensity mismatch sources
-    dI_systematic = np.sqrt(dI_mean ** 2 + dI_wfe ** 2 + dI_point ** 2)
+    # RSS of all systematic intensity mismatch sources
+    dI_systematic = np.sqrt(dI_mean ** 2
+                            + dI_wfe ** 2
+                            + dI_point ** 2
+                            + dI_shear ** 2)
 
-    # Sample fluctuating component, add to systematic (always positive)
+    # Sample fluctuating component (see Notes on folded-normal approximation)
     dI_samples = np.abs(
         rng.normal(dI_systematic, dI_rms, N_realizations)
     )
 
-    # s-p intensity split (static)
-    dI_sp = float(np.atleast_1d(
-        polarization_intensity_mismatch(wavelength, pol_angle_deg)
-    )[0])
+    # s-p intensity split (static, directly measured)
+    dI_sp = dI_sp_frac
 
     dI_s = np.abs(dI_samples + dI_sp / 2)
     dI_p = np.abs(dI_samples - dI_sp / 2)
@@ -855,6 +1057,10 @@ def cross_validate(
 ) -> dict:
     """Compare analytical budget vs Monte Carlo at a single wavelength.
 
+    Both compute_null_budget() and monte_carlo_null() accept shear_rms
+    (and all other error terms) via **kwargs, so the comparison is always
+    made on identical parameter sets.
+
     Returns percentage difference and both results for inspection.
     """
     budget = compute_null_budget(np.array([wavelength]), **kwargs)
@@ -887,7 +1093,7 @@ def run_full_analysis() -> dict:
     """
 
     print("=" * 70)
-    print("LIFE E2E Module 3: Null Depth Error Propagation  (v3.0)")
+    print("LIFE E2E Module 3: Null Depth Error Propagation  (v3.2)")
     print("=" * 70)
 
     # Wavelength grid
@@ -921,6 +1127,7 @@ def run_full_analysis() -> dict:
         dI_mean=0.43e-2,
         dI_rms=0.43e-2,
         pol_angle_deg=0.15,
+        dI_sp_frac=0.003,
         bs_delta_d=0.1e-6,
         bs_material='multiband',
         wfe_diff_rms=50e-9,
@@ -936,6 +1143,7 @@ def run_full_analysis() -> dict:
         dI_mean=0.26e-2,
         dI_rms=0.02e-2,
         pol_angle_deg=0.15,
+        dI_sp_frac=0.003,
         bs_delta_d=0.05e-6,
         bs_material='multiband',
         wfe_diff_rms=30e-9,
@@ -968,8 +1176,9 @@ def run_full_analysis() -> dict:
             opd_mean=0.5e-9, opd_rms=1.2e-9,
             dI_mean=0.43e-2, dI_rms=0.43e-2,
             pol_angle_deg=0.15,
+            dI_sp_frac=0.003,
             bs_delta_d=0.1e-6, wfe_diff_rms=50e-9,
-            pointing_rms=10e-6,
+            pointing_rms=10e-6, shear_rms=0.17e-6,
         )
         print(f"  lam={lam_target*1e6:.0f} um: "
               f"Analytical={cv['N_analytical']:.2e}  "
@@ -1006,6 +1215,8 @@ def run_full_analysis() -> dict:
                   label='Differential WFE')
     ax9a.semilogy(lam_um, b['N_pointing'], 'm--', lw=1.5,
                   label=r'Pointing $\to$ coupling')
+    ax9a.semilogy(lam_um, b['N_shear'], 'm:', lw=1.5,
+                  label=r'Shear $\to$ coupling')
     ax9a.semilogy(lam_um, b['N_total'], 'k-', lw=3,
                   label='Total null depth')
 
@@ -1052,6 +1263,8 @@ def run_full_analysis() -> dict:
                   label='Differential WFE')
     ax9b.semilogy(lam_um, b['N_pointing'], 'm--', lw=1.5,
                   label=r'Pointing $\to$ coupling')
+    ax9b.semilogy(lam_um, b['N_shear'], 'm:', lw=1.5,
+                  label=r'Shear $\to$ coupling')
     ax9b.semilogy(lam_um, b['N_total'], 'k-', lw=3,
                   label='Total null depth')
 
@@ -1087,19 +1300,23 @@ def run_full_analysis() -> dict:
     term_names = ['Phase\nsystematic', 'OPD\nRMS',
                   'dI\nmean', 'dI\nRMS',
                   'Pol.\nphase', 'Pol.\nintensity',
-                  'Diff.\nWFE', 'Pointing\ncoupling']
+                  'Diff.\nWFE', 'Pointing\ncoupling',
+                  'Shear\ncoupling']
     term_keys = ['N_phase_systematic', 'N_opd_rms',
                  'N_dI_mean', 'N_dI_rms',
                  'N_pol_phase', 'N_pol_intensity',
-                 'N_wfe', 'N_pointing']
+                 'N_wfe', 'N_pointing',
+                 'N_shear']
     colors = ['#1f77b4', '#1f77b4',
               '#d62728', '#d62728',
               '#2ca02c', '#2ca02c',
-              '#9467bd', '#9467bd']
+              '#9467bd', '#9467bd',
+              '#9467bd']
     hatches = ['', '//',
                '', '//',
                '', '//',
-               '', '//']
+               '', '//',
+               '..']
 
     for ax_idx, (lam_target, label) in enumerate(
             zip(key_wavelengths, key_labels)):
@@ -1159,8 +1376,10 @@ def run_full_analysis() -> dict:
             opd_mean=0.5e-9, opd_rms=1.2e-9,
             dI_mean=0.43e-2, dI_rms=0.43e-2,
             pol_angle_deg=0.15,
+            dI_sp_frac=0.003,
             bs_delta_d=0.1e-6, bs_material='multiband',
             wfe_diff_rms=50e-9, pointing_rms=10e-6,
+            shear_rms=0.17e-6,
         )
 
         log_N = np.log10(N_samples[N_samples > 0])
@@ -1183,8 +1402,9 @@ def run_full_analysis() -> dict:
             opd_mean=0.5e-9, opd_rms=1.2e-9,
             dI_mean=0.43e-2, dI_rms=0.43e-2,
             pol_angle_deg=0.15,
+            dI_sp_frac=0.003,
             bs_delta_d=0.1e-6, wfe_diff_rms=50e-9,
-            pointing_rms=10e-6,
+            pointing_rms=10e-6, shear_rms=0.17e-6,
         )
         N_analytical = budget_at_lam['N_total'][0]
         ax.axvline(np.log10(N_analytical), color='purple', ls='-.',
@@ -1304,6 +1524,7 @@ def run_full_analysis() -> dict:
         ('Pol. intensity', 'N_pol_intensity'),
         ('Diff. WFE', 'N_wfe'),
         ('Pointing', 'N_pointing'),
+        ('Shear', 'N_shear'),
         ('TOTAL', 'N_total'),
     ]
 
@@ -1321,7 +1542,8 @@ def run_full_analysis() -> dict:
     print("-" * 80)
     print("* Phase systematic = (OPD mean + BS chromatic) coherently summed")
     print("\nUsing NICE-demonstrated performance: "
-          "sigma_OPD=1.2 nm, dI=0.43%, pol=0.15 deg, Delta_d_BS=0.1 um")
+          "sigma_OPD=1.2 nm, dI=0.43%, pol=0.15 deg, Delta_d_BS=0.1 um, "
+          "sigma_shear=0.17 um")
 
     # Dominant error identification
     print("\n--- Dominant Error Terms ---")
@@ -1337,7 +1559,8 @@ def run_full_analysis() -> dict:
                           ('Pol. phase', 'N_pol_phase'),
                           ('Pol. intensity', 'N_pol_intensity'),
                           ('Diff. WFE', 'N_wfe'),
-                          ('Pointing', 'N_pointing')]:
+                          ('Pointing', 'N_pointing'),
+                          ('Shear', 'N_shear')]:
             fracs[name] = budget_nice[key][idx] / N_total * 100
 
         sorted_fracs = sorted(fracs.items(), key=lambda x: x[1],
@@ -1349,7 +1572,7 @@ def run_full_analysis() -> dict:
               f"{top3[2][0]} ({top3[2][1]:.0f}%)")
 
     plt.close('all')
-    print("\nAll figures saved. Module 3 v3.0 complete.")
+    print("\nAll figures saved. Module 3 v3.2 complete.")
 
     return {
         'budget_nice': budget_nice,
