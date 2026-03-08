@@ -63,6 +63,8 @@ Version history
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
@@ -331,6 +333,15 @@ def caf2_sellmeier(lam_um: ArrayLike) -> NDArray:
     constants used in MC v2 (0.00252643, 0.01007833, 1200.556).
     """
     lam_um = np.atleast_1d(np.asarray(lam_um, dtype=float))
+
+    if np.any(lam_um > 12.0):
+        warnings.warn(
+            "CaF2 Sellmeier (Malitson 1963) evaluated beyond 12 um validity "
+            "limit. Coefficients are fitted to 0.15-12 um; beyond the 9.7 um "
+            "multiphonon edge, extrapolated values may be unphysical.",
+            stacklevel=2,
+        )
+
     lam2 = lam_um**2
 
     B1, C1 = 0.5675888, 0.050263605   # um
