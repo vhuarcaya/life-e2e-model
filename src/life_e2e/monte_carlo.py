@@ -541,13 +541,13 @@ def run_monte_carlo(N_realizations: int = 100000,
     delta_I_static = 0.0043     # Static intensity mismatch (0.43%, NICE)
     sigma_delta_I = 0.0043      # Intensity mismatch drift RMS (0.43%)
     delta_d_bs_um = 0.1         # BS thickness mismatch [µm]
-    pol_phase_deg = 0.15        # Polarization phase mismatch [deg] # α: rotation mismatch [deg]; δφ_sp = 2α enters the null formula
+    pol_angle_deg = 0.15        # Polarization rotation mismatch α [deg]
     pol_intensity = 0.003       # Polarization intensity mismatch (0.3%)
     eta_tophat = 0.8145         # Ideal top-hat coupling (Module 1)
 
     # Precompute
     bs_chromatic_nm = bs_chromatic_opd(wavelengths_um, delta_d_bs_um)
-    delta_phi_sp = 2.0 * np.radians(pol_phase_deg)  # δφ_sp = 2α [B26 §3.2]
+    delta_phi_sp = 2.0 * np.radians(pol_angle_deg)  # δφ_sp = 2α (s-p phase split)
     delta_I_sp = pol_intensity
 
     # --- Results storage ---
@@ -587,7 +587,7 @@ def run_monte_carlo(N_realizations: int = 100000,
             'delta_I_static': delta_I_static,
             'sigma_delta_I': sigma_delta_I,
             'delta_d_bs_um': delta_d_bs_um,
-            'pol_phase_deg': pol_phase_deg,
+            'pol_angle_deg': pol_angle_deg,  # α; δφ_sp = 2α
             'pol_intensity': pol_intensity,
             'eta_tophat': eta_tophat,
             'zero_wfe': zero_wfe,
