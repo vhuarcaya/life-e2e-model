@@ -67,6 +67,7 @@ Version history
 from __future__ import annotations
 
 import numpy as np
+import csv
 from numpy.typing import ArrayLike, NDArray
 from scipy.special import j0, j1
 
@@ -718,9 +719,9 @@ def make_fiber_figures() -> None:
     ax20b.grid(True, alpha=0.3)
 
     fig20.tight_layout()
-    fig20.savefig('fig20_V_parameter_MFR.png', dpi=200,
+    fig20.savefig('fig20_V_parameter_MFR.pdf', dpi=300,
                   bbox_inches='tight')
-    print("  Saved: fig20_V_parameter_MFR.png")
+    print("  Saved: fig20_V_parameter_MFR.pdf")
 
     # -- Fig 21: Mode field profiles and coupling --------------------
     fig21, (ax21a, ax21b) = plt.subplots(1, 2, figsize=(13, 5.5))
@@ -792,9 +793,9 @@ def make_fiber_figures() -> None:
     ax21b.grid(True, alpha=0.3)
 
     fig21.tight_layout()
-    fig21.savefig('fig21_mode_profiles.png', dpi=200,
+    fig21.savefig('fig21_mode_profiles.pdf', dpi=300,
                   bbox_inches='tight')
-    print("  Saved: fig21_mode_profiles.png")
+    print("  Saved: fig21_mode_profiles.pdf")
 
     # -- Fig 22: eta(beta) + misalignment ----------------------------
     fig22, (ax22a, ax22b) = plt.subplots(1, 2, figsize=(13, 5.5))
@@ -840,9 +841,9 @@ def make_fiber_figures() -> None:
     ax22b.grid(True, alpha=0.3)
 
     fig22.tight_layout()
-    fig22.savefig('fig22_coupling_sensitivity.png', dpi=200,
+    fig22.savefig('fig22_coupling_sensitivity.pdf', dpi=300,
                   bbox_inches='tight')
-    print("  Saved: fig22_coupling_sensitivity.png")
+    print("  Saved: fig22_coupling_sensitivity.pdf")
 
     plt.close('all')
 
@@ -869,6 +870,43 @@ def make_fiber_figures() -> None:
                        else 'silver_halide'))
         optimal_coupling_summary(lam_val, ftype)
 
+    # ---- CSV exports ----
+    # Fiber parameters summary
+    with open('fiber_modes_params.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['fiber_type', 'n_core', 'n_clad', 'a_core_um',
+                      'lambda_cutoff_um', 'V_at_10um', 'w_f_at_10um'])
+        for ftype, p in FIBER_PARAMS.items():
+            lam_c = single_mode_cutoff(p['n_core'], p['n_clad'],
+                                       p['a_core_um'])
+            V10 = float(v_parameter(np.array([10.0]), p['n_core'],
+                                    p['n_clad'], p['a_core_um'])[0])
+            wf10 = float(mode_field_radius(np.array([10.0]), p['n_core'],
+                                           p['n_clad'], p['a_core_um'])[0])
+            cw.writerow([ftype, f'{p["n_core"]:.4f}', f'{p["n_clad"]:.4f}',
+                          f'{p["a_core_um"]:.1f}', f'{lam_c:.2f}',
+                          f'{V10:.4f}', f'{wf10:.4f}'])
+    print("  Exported: fiber_modes_params.csv")
+
+    # MFD vs wavelength table (chalcogenide, the baseline fiber)
+    with open('fiber_modes_mfd_vs_wavelength.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'V_parameter', 'MFD_marcuse_um',
+                      'MFD_linear_um', 'single_mode'])
+        p = FIBER_PARAMS['chalcogenide']
+        for lam_um_val in np.arange(4.0, 20.0, 0.5):
+            V = float(v_parameter(np.array([lam_um_val]), p['n_core'],
+                                  p['n_clad'], p['a_core_um'])[0])
+            mfd_m = 2 * float(mode_field_radius(
+                np.array([lam_um_val]), p['n_core'], p['n_clad'],
+                p['a_core_um'])[0])
+            mfd_lin = 2 * float(mode_field_radius_linear(
+                np.array([lam_um_val]))[0])
+            sm = V < 2.405
+            cw.writerow([f'{lam_um_val:.1f}', f'{V:.4f}',
+                          f'{mfd_m:.4f}', f'{mfd_lin:.4f}', sm])
+    print("  Exported: fiber_modes_mfd_vs_wavelength.csv")
+
 
 # ======================================================================
 # Entry point
@@ -879,4 +917,4 @@ if __name__ == '__main__':
     print("LIFE Fiber Modes Library -- Summary Figures")
     print("=" * 70)
     make_fiber_figures()
-    print("\nAll figures saved.  Fiber modes library ready.")
+    print("\nAll figures and tables saved.  Fiber modes library ready.")

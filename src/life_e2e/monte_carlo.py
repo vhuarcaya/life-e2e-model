@@ -73,6 +73,7 @@ import os
 import time
 import warnings
 import numpy as np
+import csv
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -109,8 +110,8 @@ plt.rcParams.update({
     'legend.fontsize': 9,
     'xtick.labelsize': 10,
     'ytick.labelsize': 10,
-    'figure.dpi': 200,
-    'savefig.dpi': 200,
+    'figure.dpi': 150,
+    'savefig.dpi': 300,
 })
 
 OUTPUT_DIR = os.environ.get('LIFE_OUTPUT_DIR', os.getcwd())
@@ -948,7 +949,7 @@ def generate_figure_11(results, analytical):
         fontsize=13, y=1.02)
     fig.tight_layout()
 
-    outpath = os.path.join(OUTPUT_DIR, 'fig11_mc_null_distributions.png')
+    outpath = os.path.join(OUTPUT_DIR, 'fig11_mc_null_distributions.pdf')
     fig.savefig(outpath, bbox_inches='tight')
     plt.close()
     print(f"  Saved: {outpath}")
@@ -1012,7 +1013,7 @@ def generate_figure_12(results):
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     fig.tight_layout()
-    outpath = os.path.join(OUTPUT_DIR, 'fig12_null_cdf.png')
+    outpath = os.path.join(OUTPUT_DIR, 'fig12_null_cdf.pdf')
     fig.savefig(outpath, bbox_inches='tight')
     plt.close()
     print(f"  Saved: {outpath}")
@@ -1085,7 +1086,7 @@ def generate_figure_13(results):
         fontsize=13, y=1.02)
     fig.tight_layout()
 
-    outpath = os.path.join(OUTPUT_DIR, 'fig13_throughput_distributions.png')
+    outpath = os.path.join(OUTPUT_DIR, 'fig13_throughput_distributions.pdf')
     fig.savefig(outpath, bbox_inches='tight')
     plt.close()
     print(f"  Saved: {outpath}")
@@ -1241,6 +1242,90 @@ if __name__ == '__main__':
     # 6. Bug fix comparison
     print_bugfix_comparison(results)
 
+    # ---- CSV/TXT exports ----
+    wavelengths_um = results['wavelengths']
+    null_depths = results['null_depths']
+    throughputs = results['throughputs']
+    coupling_effs = results['coupling_effs']
+    n_wav = len(wavelengths_um)
+
+    # Per-wavelength MC statistics
+    mc_stats_path = os.path.join(OUTPUT_DIR, 'mc_per_wavelength.csv')
+    with open(mc_stats_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'N_mean', 'N_median', 'N_p5',
+                      'N_p50', 'N_p95', 'N_p99',
+                      'T_mean_pct', 'T_std_pct',
+                      'eta_mean_pct'])
+        for j in range(n_wav):
+            N_col = null_depths[:, j]
+            T_col = throughputs[:, j]
+            eta_col = coupling_effs[:, j]
+            cw.writerow([
+                f'{wavelengths_um[j]:.1f}',
+                f'{np.mean(N_col):.6e}',
+                f'{np.median(N_col):.6e}',
+                f'{np.percentile(N_col, 5):.6e}',
+                f'{np.percentile(N_col, 50):.6e}',
+                f'{np.percentile(N_col, 95):.6e}',
+                f'{np.percentile(N_col, 99):.6e}',
+                f'{np.mean(T_col)*100:.4f}',
+                f'{np.std(T_col)*100:.4f}',
+                f'{np.mean(eta_col)*100:.2f}',
+            ])
+    print(f"  Exported: {mc_stats_path}")
+
+    # MC parameters
+    params_path = os.path.join(OUTPUT_DIR, 'mc_parameters.csv')
+    with open(params_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['parameter', 'value'])
+        params = results['parameters']
+        for key, val in params.items():
+            cw.writerow([key, val])
+    print(f"  Exported: {params_path}")
+
+    # Technology gap table
+    gap_path = os.path.join(OUTPUT_DIR, 'mc_technology_gap.csv')
+    with open(gap_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'N_mc_mean', 'N_mc_p95',
+                      'N_requirement', 'gap_factor_mean', 'gap_factor_p95'])
+        for j in range(n_wav):
+            lam = wavelengths_um[j]
+            N_col = null_depths[:, j]
+            N_mean = np.mean(N_col)
+            N_p95 = np.percentile(N_col, 95)
+            N_req = null_requirement_curve(lam * 1e-6)
+            cw.writerow([
+                f'{lam:.1f}',
+                f'{N_mean:.6e}',
+                f'{N_p95:.6e}',
+                f'{N_req:.6e}',
+                f'{N_mean / N_req:.2f}',
+                f'{N_p95 / N_req:.2f}',
+            ])
+    print(f"  Exported: {gap_path}")
+
+    # WFE-zero validation
+    if wfe_zero_results is not None:
+        wfe0_path = os.path.join(OUTPUT_DIR, 'mc_wfe_zero_validation.csv')
+        wfe0_null = wfe_zero_results['null_depths']
+        wfe0_wav = wfe_zero_results['wavelengths']
+        with open(wfe0_path, 'w', newline='') as csvf:
+            cw = csv.writer(csvf)
+            cw.writerow(['wavelength_um', 'N_mean_wfe0', 'N_median_wfe0',
+                          'N_p95_wfe0'])
+            for j in range(len(wfe0_wav)):
+                N_col = wfe0_null[:, j]
+                cw.writerow([
+                    f'{wfe0_wav[j]:.1f}',
+                    f'{np.mean(N_col):.6e}',
+                    f'{np.median(N_col):.6e}',
+                    f'{np.percentile(N_col, 95):.6e}',
+                ])
+        print(f"  Exported: {wfe0_path}")
+
     print("\n" + "=" * 80)
-    print("All figures and tables generated successfully.")
+    print("All figures, tables and CSV exports generated successfully.")
     print("=" * 80)

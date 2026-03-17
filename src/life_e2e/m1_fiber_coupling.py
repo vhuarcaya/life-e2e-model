@@ -72,6 +72,7 @@ Key results:
 """
 
 import numpy as np
+import csv
 import math
 import warnings
 from scipy.special import j1  # Bessel J_1
@@ -1057,9 +1058,9 @@ def run_full_analysis():
     ax1b.legend(fontsize=10, loc='center right')
 
     fig1.tight_layout()
-    fig1.savefig('./fig1_coupling_vs_beta.png', dpi=200,
+    fig1.savefig('./fig1_coupling_vs_beta.pdf', dpi=300,
                 bbox_inches='tight')
-    print("  Saved: fig1_coupling_vs_beta.png")
+    print("  Saved: fig1_coupling_vs_beta.pdf")
 
     # ---- Figure 5: V-parameter and MFD comparison ----
     print("\n--- Figure 5: V-parameter and MFD: Marcuse vs power-law ---")
@@ -1106,9 +1107,9 @@ def run_full_analysis():
              bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     fig5.tight_layout()
-    fig5.savefig('./fig5_v_parameter_mfd.png', dpi=200,
+    fig5.savefig('./fig5_v_parameter_mfd.pdf', dpi=300,
                 bbox_inches='tight')
-    print("  Saved: fig5_v_parameter_mfd.png")
+    print("  Saved: fig5_v_parameter_mfd.pdf")
 
     # ---- Figure 2: Coupling vs wavelength across LIFE band ----
     print("\n--- Figure 2: Coupling vs wavelength across LIFE band ---")
@@ -1213,9 +1214,9 @@ def run_full_analysis():
                fontsize=10)
 
     fig2.tight_layout()
-    fig2.savefig('./fig2_coupling_vs_wavelength.png', dpi=200,
+    fig2.savefig('./fig2_coupling_vs_wavelength.pdf', dpi=300,
                 bbox_inches='tight')
-    print("  Saved: fig2_coupling_vs_wavelength.png")
+    print("  Saved: fig2_coupling_vs_wavelength.pdf")
 
     # ---- Figure 3: Pointing and shear sensitivity ----
     print("\n--- Figure 3: Pointing & shear sensitivity ---")
@@ -1311,9 +1312,9 @@ def run_full_analysis():
     ax3b.grid(True, alpha=0.3)
 
     fig3.tight_layout()
-    fig3.savefig('./fig3_pointing_shear_sensitivity.png', dpi=200,
+    fig3.savefig('./fig3_pointing_shear_sensitivity.pdf', dpi=300,
                 bbox_inches='tight')
-    print("  Saved: fig3_pointing_shear_sensitivity.png")
+    print("  Saved: fig3_pointing_shear_sensitivity.pdf")
 
     # ---- Figure 4: Zernike sensitivity ----
     print("\n--- Figure 4: Zernike aberration sensitivity ---")
@@ -1384,9 +1385,9 @@ def run_full_analysis():
     ax4.grid(True, alpha=0.3)
 
     fig4.tight_layout()
-    fig4.savefig('./fig4_zernike_sensitivity.png', dpi=200,
+    fig4.savefig('./fig4_zernike_sensitivity.pdf', dpi=300,
                 bbox_inches='tight')
-    print("  Saved: fig4_zernike_sensitivity.png")
+    print("  Saved: fig4_zernike_sensitivity.pdf")
 
     # ---- Numerical validation: compare analytical vs numerical top-hat ----
     print("\n--- Validation: Analytical vs Numerical top-hat coupling ---")
@@ -1465,8 +1466,63 @@ def run_full_analysis():
     print(f"  or ~{(1/np.sqrt(eta_max) - 1)*100:.0f}% diameter increase "
           f"({(1/eta_max - 1)*100:.0f}% area increase).")
 
+    # ---- CSV/TXT exports ----
+    # V-parameter table
+    with open('m1_v_parameter.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'V_parameter', 'single_mode'])
+        for lam in [6e-6, 8e-6, 10e-6, 12e-6, 14e-6, 16e-6, 18.5e-6]:
+            V = v_parameter(lam)
+            _, sm = check_single_mode(lam, warn=False)
+            cw.writerow([f'{lam*1e6:.1f}', f'{V:.4f}', sm])
+    print("  Exported: m1_v_parameter.csv")
+
+    # Coupling summary table
+    with open('m1_coupling_summary.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'V_parameter', 'w_fiber_um',
+                      'eta_tophat', 'eta_tophat_pct'])
+        for lam in [6e-6, 8e-6, 10e-6, 12e-6, 14e-6, 16e-6]:
+            w_f = fiber_mode_radius(lam, method='marcuse')
+            V = v_parameter(lam)
+            f_opt_t = optimal_focal_length(D_BEAM, w_f, lam,
+                                            beam_type='tophat')
+            eta_t = coupling_tophat_analytical(D_BEAM, w_f, lam, f_opt_t)
+            cw.writerow([f'{lam*1e6:.1f}', f'{V:.4f}', f'{w_f*1e6:.4f}',
+                          f'{eta_t:.6f}', f'{eta_t*100:.2f}'])
+    print("  Exported: m1_coupling_summary.csv")
+
+    # Marechal validation table
+    with open('m1_marechal_validation.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wfe_nm', 'eta_marechal', 'eta_zernike_Z4',
+                      'rel_diff_pct'])
+        lam_v = 10e-6
+        w_f_v = fiber_mode_radius(lam_v, method='marcuse')
+        f_v = optimal_focal_length(D_BEAM, w_f_v, lam_v, beam_type='tophat')
+        eta_base = coupling_tophat_analytical(D_BEAM, w_f_v, lam_v, f_v)
+        for wfe_nm in [20, 50, 100, 200]:
+            wfe_m = wfe_nm * 1e-9
+            eta_mar = marechal_coupling(eta_base, wfe_m, lam_v)
+            eta_zern = coupling_with_zernike(D_BEAM, w_f_v, lam_v, f_v,
+                                              {4: wfe_m}, beam_type='tophat',
+                                              N_grid=256)
+            rdiff = abs(eta_mar - eta_zern) / eta_mar * 100
+            cw.writerow([wfe_nm, f'{eta_mar:.6f}', f'{eta_zern:.6f}',
+                          f'{rdiff:.2f}'])
+    print("  Exported: m1_marechal_validation.csv")
+
+    # Null from shear table
+    with open('m1_null_from_shear.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['shear_um', 'delta_I', 'N_shear'])
+        for shear_um in [0.17, 1.0, 10.0, 100.0, 203.0]:
+            N_sh, dI_sh = null_from_shear(shear_um * 1e-6, W0_GAUSSIAN)
+            cw.writerow([f'{shear_um:.2f}', f'{dI_sh:.6e}', f'{N_sh:.6e}'])
+    print("  Exported: m1_null_from_shear.csv")
+
     plt.close('all')
-    print("\nAll figures saved. Module 1 v2.0 complete.")
+    print("\nAll figures and tables saved. Module 1 v2.0 complete.")
 
     return {
         'eta_max_tophat': eta_max,

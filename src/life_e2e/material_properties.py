@@ -64,6 +64,7 @@ Version history
 from __future__ import annotations
 
 import numpy as np
+import csv
 import warnings
 from numpy.typing import ArrayLike, NDArray
 
@@ -1041,15 +1042,15 @@ def make_material_figures() -> None:
     ax17b.axvspan(6, 16, alpha=0.08, color='green')
     ax17b.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
     ax17b.set_ylabel(r'$dn/d\lambda$ [$\mu$m$^{-1}$]', fontsize=12)
-    ax17b.set_title('Chromatic Dispersion (drives BS OPD error)', fontsize=13)
+    ax17b.set_title('Chromatic Dispersion', fontsize=13)
     ax17b.legend(fontsize=10)
     ax17b.set_xlim(1, 25)
     ax17b.grid(True, alpha=0.3)
 
     fig17.tight_layout()
-    fig17.savefig('fig17_refractive_indices.png', dpi=200,
+    fig17.savefig('fig17_refractive_indices.pdf', dpi=300,
                   bbox_inches='tight')
-    print("  Saved: fig17_refractive_indices.png")
+    print("  Saved: fig17_refractive_indices.pdf")
 
     # -- Fig 18: Substrate transmission + fiber attenuation ----------
     fig18, (ax18a, ax18b) = plt.subplots(1, 2, figsize=(13, 5.5))
@@ -1091,9 +1092,9 @@ def make_material_figures() -> None:
     ax18b.grid(True, alpha=0.3, which='both')
 
     fig18.tight_layout()
-    fig18.savefig('fig18_transmission_fiber.png', dpi=200,
+    fig18.savefig('fig18_transmission_fiber.pdf', dpi=300,
                   bbox_inches='tight')
-    print("  Saved: fig18_transmission_fiber.png")
+    print("  Saved: fig18_transmission_fiber.pdf")
 
     # -- Fig 19: Gold reflectivity + detector QE ---------------------
     fig19, (ax19a, ax19b) = plt.subplots(1, 2, figsize=(13, 5.5))
@@ -1128,13 +1129,34 @@ def make_material_figures() -> None:
     ax19b.grid(True, alpha=0.3)
 
     fig19.tight_layout()
-    fig19.savefig('fig19_gold_detector.png', dpi=200, bbox_inches='tight')
-    print("  Saved: fig19_gold_detector.png")
+    fig19.savefig('fig19_gold_detector.pdf', dpi=300, bbox_inches='tight')
+    print("  Saved: fig19_gold_detector.pdf")
 
     plt.close('all')
 
     for lam_val in [6.0, 10.0, 16.0]:
         material_comparison_table(lam_val)
+
+    # ---- CSV exports ----
+    lam_grid = np.arange(4.0, 20.5, 0.5)
+    with open('material_properties_table.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'n_CaF2', 'n_ZnSe',
+                      'R_gold_flight', 'T_CaF2_2mm_AR090',
+                      'T_ZnSe_2mm_AR090', 'T_fiber_per_m',
+                      'QE_SiAs_BIB'])
+        for lam in lam_grid:
+            n_caf2 = caf2_sellmeier(np.array([lam]))[0]
+            n_znse = znse_sellmeier(np.array([lam]))[0]
+            R_au = gold_reflectivity(np.array([lam]), 'flight')[0]
+            T_caf2 = caf2_transmission(np.array([lam]), 2.0, 0.90)[0]
+            T_znse = znse_transmission(np.array([lam]), 2.0, 0.90)[0]
+            T_fib = fiber_transmission(np.array([lam]))[0]
+            qe = detector_qe(np.array([lam]), 'SiAs_BIB')[0]
+            cw.writerow([f'{lam:.1f}', f'{n_caf2:.6f}', f'{n_znse:.6f}',
+                          f'{R_au:.6f}', f'{T_caf2:.6f}', f'{T_znse:.6f}',
+                          f'{T_fib:.6f}', f'{qe:.4f}'])
+    print("  Exported: material_properties_table.csv")
 
 
 # ======================================================================
@@ -1146,4 +1168,4 @@ if __name__ == '__main__':
     print("LIFE Material Properties Library -- Summary Figures")
     print("=" * 70)
     make_material_figures()
-    print("\nAll figures saved.  Material properties library ready.")
+    print("\nAll figures and tables saved.  Material properties library ready.")

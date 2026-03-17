@@ -74,6 +74,7 @@ These omissions are conservative: PIAA would improve throughput.
 """
 
 import numpy as np
+import csv
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.patches as mpatches
@@ -840,7 +841,7 @@ def make_fig5_material_properties():
         ax.xaxis.set_minor_locator(MultipleLocator(1))
 
     fig.tight_layout()
-    fig.savefig('fig5_material_properties.png')
+    fig.savefig('fig5_material_properties.pdf')
     plt.close()
     print("[OK] Fig 5 saved: material properties")
 
@@ -907,25 +908,21 @@ def make_fig6_waterfall():
                         f'{height:.1f}%', ha='center', va='bottom',
                         fontsize=6.5)
 
-    ax.axhline(3.5, color='green', ls='--', alpha=0.5, lw=1.5)
-    ax.annotate('LIFE PCE lower bound (3.5%)', xy=(0.02, 3.5),
-                xycoords=('axes fraction', 'data'),
-                xytext=(0, 10), textcoords='offset points',
-                fontsize=9, color='green', ha='left',
-                fontstyle='italic')
-
+    ax.axhline(5.0, color='green', ls='--', alpha=0.5, lw=1.5)
+    ax.text(len(section_names) + 0.3, 5.5, 'LIFE req.\n(~5% PCE)',
+            fontsize=8, color='green')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=7.5, ha='center')
     ax.set_ylabel('Cumulative Throughput (%)')
-    ax.set_title(r'Cumulative throughput at $\lambda = $'
-                 f'{lam_ref} $\\mu$m')
+    ax.set_title(r'Throughput Cascade at $\lambda$ = '
+                 f'{lam_ref} $\\mu$m -- LIFE Full Chain (7 sections)')
     ax.legend(loc='upper right')
     ax.set_ylim(0, 110)
     ax.grid(axis='y', alpha=0.3)
     ax.grid(axis='x', alpha=0.0)
 
     fig.tight_layout()
-    fig.savefig('fig6_throughput_waterfall.png')
+    fig.savefig('fig6_throughput_waterfall.pdf')
     plt.close()
     print("[OK] Fig 6 saved: throughput waterfall")
 
@@ -1004,7 +1001,7 @@ def make_fig7_throughput_vs_wavelength():
     ax.axvspan(*LIFE_BAND, alpha=0.06, color='blue')
 
     fig.tight_layout()
-    fig.savefig('fig7_throughput_vs_wavelength.png')
+    fig.savefig('fig7_throughput_vs_wavelength.pdf')
     plt.close()
     print("[OK] Fig 7 saved: throughput vs wavelength")
 
@@ -1074,7 +1071,7 @@ def make_fig8_sensitivity():
     ax.set_ylim(0, 15)
 
     fig.tight_layout()
-    fig.savefig('fig8_throughput_sensitivity.png')
+    fig.savefig('fig8_throughput_sensitivity.pdf')
     plt.close()
     print("[OK] Fig 8 saved: throughput sensitivity")
 
@@ -1157,6 +1154,42 @@ def generate_summary_table():
     for loss, name in losses[:8]:
         print(f"  {name:<30} {loss:5.1f}% loss")
 
+    # ---- CSV exports ----
+    # Component-level throughput table
+    with open('m2_component_throughput.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['component'] + [f'{w:.0f}um' for w in wavelengths])
+        for name, arr in rows:
+            row = [name]
+            for w in wavelengths:
+                idx = np.argmin(np.abs(lam_um - w))
+                row.append(f'{arr[idx]:.6f}')
+            cw.writerow(row)
+    print("  Exported: m2_component_throughput.csv")
+
+    # PCE summary for all configurations
+    with open('m2_pce_summary.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['configuration'] + [f'{w:.0f}um' for w in wavelengths])
+        for label, bp, cc in configs:
+            res = compute_throughput_LIFE(lam_um, beam_profile=bp,
+                                          include_cross_combiner=cc,
+                                          verbose=False)
+            row = [label]
+            for w in wavelengths:
+                idx = np.argmin(np.abs(lam_um - w))
+                row.append(f'{res["T_total"][idx]:.6f}')
+            cw.writerow(row)
+    print("  Exported: m2_pce_summary.csv")
+
+    # Dominant losses table
+    with open('m2_dominant_losses.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['component', 'loss_pct_at_10um'])
+        for loss_val, name in losses[:8]:
+            cw.writerow([name, f'{loss_val:.2f}'])
+    print("  Exported: m2_dominant_losses.csv")
+
 
 # =============================================================================
 # MAIN EXECUTION
@@ -1187,4 +1220,4 @@ if __name__ == '__main__':
     make_fig7_throughput_vs_wavelength()
     make_fig8_sensitivity()
 
-    print("\n[OK] Module 2 v3.0 complete. All figures saved.")
+    print("\n[OK] Module 2 v3.0 complete. All figures and tables saved.")

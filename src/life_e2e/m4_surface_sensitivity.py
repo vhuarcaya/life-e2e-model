@@ -68,6 +68,7 @@ Key results (v2.0):
 """
 
 import numpy as np
+import csv
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -785,9 +786,9 @@ def run_full_analysis():
     ax13b.invert_yaxis()
 
     fig13.tight_layout()
-    fig13.savefig('fig13_surface_ranking.png', dpi=200,
+    fig13.savefig('fig13_surface_ranking.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig13_surface_ranking.png")
+    print("  Saved: fig13_surface_ranking.pdf")
 
     # ========================================================================
     # Figure 14: Null depth vs WFE tolerance curves
@@ -861,9 +862,9 @@ def run_full_analysis():
     ax14b.grid(True, alpha=0.3, which='both')
 
     fig14.tight_layout()
-    fig14.savefig('fig14_wfe_tolerance.png', dpi=200,
+    fig14.savefig('fig14_wfe_tolerance.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig14_wfe_tolerance.png")
+    print("  Saved: fig14_wfe_tolerance.pdf")
 
     # ========================================================================
     # Figure 15: Wavelength-dependent sensitivity for top surfaces
@@ -914,9 +915,9 @@ def run_full_analysis():
     ax15.grid(True, alpha=0.3, which='both')
 
     fig15.tight_layout()
-    fig15.savefig('fig15_wavelength_sensitivity.png', dpi=200,
+    fig15.savefig('fig15_wavelength_sensitivity.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig15_wavelength_sensitivity.png")
+    print("  Saved: fig15_wavelength_sensitivity.pdf")
 
     # ========================================================================
     # Figure 16: Required surface quality specification
@@ -999,9 +1000,9 @@ def run_full_analysis():
     ax16.legend(handles=handles, fontsize=8, loc='lower right', ncol=2)
 
     fig16.tight_layout()
-    fig16.savefig('fig16_quality_specs.png', dpi=200,
+    fig16.savefig('fig16_quality_specs.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig16_quality_specs.png")
+    print("  Saved: fig16_quality_specs.pdf")
 
     # ========================================================================
     # Summary: Tiered quality specification table
@@ -1061,8 +1062,53 @@ def run_full_analysis():
               f"-> N = {N_check:.2e}  (target: {N_alloc:.2e}, "
               f"ratio: {N_check/N_alloc:.3f})")
 
+    # ---- CSV/TXT exports ----
+    # Surface sensitivity ranking
+    with open('m4_surface_ranking.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['rank', 'surface', 'section', 'count',
+                      'is_differential', 'pre_fiber', 'post_combination',
+                      'cmr', 'wfe_total_nm', 'wfe_differential_nm',
+                      'N_null_6um', 'N_null_10um', 'N_null_16um',
+                      'quality_req_lambda_over', 'fom'])
+        for rank, r in enumerate(results, 1):
+            nc = r['null_contribution']
+            cw.writerow([
+                rank, r['name'], r['section'], r['count'],
+                r['is_differential'], r['pre_fiber'], r['post_combination'],
+                f'{r["cmr"]:.3f}',
+                f'{r["wfe_total_nm"]:.2f}', f'{r["wfe_differential_nm"]:.2f}',
+                f'{nc.get("6", 0.0):.6e}',
+                f'{nc.get("10", 0.0):.6e}',
+                f'{nc.get("16", 0.0):.6e}',
+                f'{r["quality_req_lambda_over"]:.1f}',
+                f'{r["fom"]:.6e}',
+            ])
+    print("  Exported: m4_surface_ranking.csv")
+
+    # Tier classification summary
+    with open('m4_tier_classification.csv', 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['surface', 'tier', 'quality_req_lambda_over',
+                      'wfe_differential_nm', 'mode'])
+        for r in tier1:
+            mode = 'differential' if r['is_differential'] else 'common-mode'
+            cw.writerow([r['name'], 1, f'{r["quality_req_lambda_over"]:.0f}',
+                          f'{r["wfe_differential_nm"]:.0f}', mode])
+        for r in tier2:
+            mode = 'differential' if r['is_differential'] else 'common-mode'
+            cw.writerow([r['name'], 2, f'{r["quality_req_lambda_over"]:.0f}',
+                          f'{r["wfe_differential_nm"]:.0f}', mode])
+        for r in tier3:
+            reason = ('post-fiber' if not r['pre_fiber'] else
+                      ('post-combination' if r['post_combination']
+                       else 'common-mode'))
+            cw.writerow([r['name'], 3, f'{r["quality_req_lambda_over"]:.0f}',
+                          f'{r["wfe_differential_nm"]:.0f}', reason])
+    print("  Exported: m4_tier_classification.csv")
+
     plt.close('all')
-    print("\nAll figures saved. Module 4 v3.0 complete.")
+    print("\nAll figures and tables saved. Module 4 v3.0 complete.")
 
     return results
 
