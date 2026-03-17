@@ -907,18 +907,18 @@ def make_fig6_waterfall():
                         f'{height:.1f}%', ha='center', va='bottom',
                         fontsize=6.5)
 
-    ax.axhline(5.0, color='green', ls='--', alpha=0.5, lw=1.5)
-    ax.text(len(section_names) + 0.3, 5.5, 'LIFE req.\n(~5% PCE)',
-            fontsize=8, color='green')
-    ax.axhline(20.0, color='orange', ls='--', alpha=0.5, lw=1.5)
-    ax.text(len(section_names) + 0.3, 20.5, 'NICE req.\n(20% PCE)',
-            fontsize=8, color='darkorange')
+    ax.axhline(3.5, color='green', ls='--', alpha=0.5, lw=1.5)
+    ax.annotate('LIFE PCE lower bound (3.5%)', xy=(0.02, 3.5),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, 10), textcoords='offset points',
+                fontsize=9, color='green', ha='left',
+                fontstyle='italic')
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=7.5, ha='center')
     ax.set_ylabel('Cumulative Throughput (%)')
-    ax.set_title(r'Throughput Cascade at $\lambda$ = '
-                 f'{lam_ref} $\\mu$m -- LIFE Full Chain (7 sections)')
+    ax.set_title(r'Cumulative throughput at $\lambda = $'
+                 f'{lam_ref} $\\mu$m')
     ax.legend(loc='upper right')
     ax.set_ylim(0, 110)
     ax.grid(axis='y', alpha=0.3)
