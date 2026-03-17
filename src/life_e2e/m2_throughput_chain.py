@@ -194,14 +194,11 @@ def znse_transmission(lam_um, thickness_mm=2.0, ar_efficiency=0.0):
 def detector_qe(lam_um, detector_type='SiAs_BIB'):
     """Detector QE with Module 2 legacy type names.
 
-    Maps 'MCT_13um' -> 'HgCdTe' and 'requirement' -> flat 60%.
+    Maps 'MCT_13um' -> 'HgCdTe'.
     All other types are passed through to the library.
     """
     if detector_type == 'MCT_13um':
         return _lib_detector_qe(lam_um, 'HgCdTe')
-    elif detector_type == 'requirement':
-        arr = np.atleast_1d(np.asarray(lam_um, dtype=float))
-        return 0.60 * np.ones_like(arr)
     else:
         return _lib_detector_qe(lam_um, detector_type)
 
@@ -827,8 +824,8 @@ def make_fig5_material_properties():
     ax = axes[2]
     for det, ls, label in [('SiAs_BIB', '-', 'Si:As BIB (MIRI-type)'),
                            ('MCT_13um', '--',
-                            r'MCT ($\lambda_{\rm cut}$=13 $\mu$m)'),
-                           ('requirement', ':', 'NICE requirement (60%)')]:
+                            r'HgCdTe ($\lambda_c = 14\,\mu$m)'),
+                           ('SiSb_BIB', ':', 'Si:Sb BIB')]:
         qe = detector_qe(lam_um, det)
         ax.plot(lam_um, qe * 100, ls=ls, label=label)
 
