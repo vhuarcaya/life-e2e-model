@@ -68,7 +68,6 @@ Key results (v2.0):
 """
 
 import numpy as np
-import csv
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -79,6 +78,30 @@ import matplotlib.patches as mpatches
 # Import null requirement curve from Module 3 (canonical source)
 # =============================================================================
 from m3_null_error_propagation import null_requirement_curve
+
+
+def null_requirement_curve_fig9(wavelengths):
+    """Wavelength-dependent null requirement from birbacher2026 Fig. 9.
+
+    This is the SNR-based requirement (Row 2 in the paper's Table 5),
+    distinct from the photon-noise floor requirement (Row 1) returned
+    by null_requirement_curve().
+
+    Anchor points (read from birbacher2026 Fig. 9 and Table 1):
+        6 um -> 1.5e-5
+        8 um -> 7.0e-6
+       10 um -> 9.0e-6
+       12 um -> 4.0e-5
+       16 um -> 8.0e-5
+    """
+    lam_um = np.atleast_1d(np.asarray(wavelengths, dtype=float)) * 1e6
+    lam_anchors = np.array([6.0, 8.0, 10.0, 12.0, 16.0])
+    N_anchors = np.array([1.5e-5, 7.0e-6, 9.0e-6, 4.0e-5, 8.0e-5])
+    log_N = np.interp(lam_um, lam_anchors, np.log10(N_anchors),
+                      left=np.log10(N_anchors[0]),
+                      right=np.log10(N_anchors[-1]))
+    result = 10.0 ** log_N
+    return float(result.flat[0]) if np.ndim(wavelengths) == 0 else result
 
 
 # ============================================================================
@@ -786,18 +809,23 @@ def run_full_analysis():
     ax13b.invert_yaxis()
 
     fig13.tight_layout()
+    fig13.savefig('fig13_surface_ranking.png', dpi=200,
+                 bbox_inches='tight')
     fig13.savefig('fig13_surface_ranking.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig13_surface_ranking.pdf")
+    print("  Saved: fig13_surface_ranking.pdf / .png")
 
     # ========================================================================
-    # Figure 14: Null depth vs WFE tolerance curves
+    # Figure 14: Null depth vs WFE tolerance curves (v2)
     # ========================================================================
-    print("\n--- Figure 14: Null depth vs WFE tolerance curves ---")
+    # v2: Shows both Table~2 (Ranganathan 2024) and Fig.~9 (birbacher2026)
+    # requirement lines on each panel, with explicit attribution labels.
+    # ========================================================================
+    print("\n--- Figure 14: Null depth vs WFE tolerance curves (v2) ---")
 
     fig14, (ax14a, ax14b) = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Panel A: at 6 um (most stringent)
+    # --- Panel A: at 6 um (most stringent) ---
     wfe, N_diff, N_cmr85, N_cmr70, N_cmr30 = compute_tolerance_curves(6e-6)
 
     ax14a.semilogy(wfe * 1e9, N_diff, 'r-', lw=2.5,
@@ -809,10 +837,15 @@ def run_full_analysis():
     ax14a.semilogy(wfe * 1e9, N_cmr85, 'g-.', lw=2,
                    label='Common-mode (CMR=0.85)')
 
-    ax14a.axhline(y=1e-5, color='red', ls=':', lw=2, alpha=0.7)
-    ax14a.text(350, 1.3e-5, r'N = $10^{-5}$ req', fontsize=10, color='red')
-    ax14a.axhline(y=1e-5/9, color='orange', ls=':', lw=1.5, alpha=0.7)
-    ax14a.text(350, 1.5e-6, 'Budget/9', fontsize=9, color='orange')
+    # Both requirements at 6 um — in legend, not as floating text
+    N_tab2_6 = null_requirement_curve(6e-6)       # 1.0e-5
+    N_fig9_6 = null_requirement_curve_fig9(6e-6)   # 1.5e-5
+    ax14a.axhline(y=N_tab2_6, color='red', ls=':', lw=2, alpha=0.7,
+                  label=rf'Table~2 req. ($10^{{-5}}$)')
+    ax14a.axhline(y=N_fig9_6, color='purple', ls=':', lw=2, alpha=0.7,
+                  label=rf'Fig.~9 req. ($1.5\times10^{{-5}}$)')
+    ax14a.axhline(y=N_tab2_6 / 9, color='orange', ls=':', lw=1.5, alpha=0.5,
+                  label=r'Budget/9 (Table~2)')
 
     for quality, wfe_nm, col in [(r'$\lambda$/100', 60, 'green'),
                                    (r'$\lambda$/50', 120, 'orange'),
@@ -821,15 +854,15 @@ def run_full_analysis():
         ax14a.text(wfe_nm + 5, 5e-4, quality, fontsize=9,
                    color=col, rotation=90)
 
-    ax14a.set_xlabel('Surface WFE RMS [nm]', fontsize=13)
+    ax14a.set_xlabel('Surface WFE RMS (nm)', fontsize=13)
     ax14a.set_ylabel('Null depth contribution', fontsize=13)
     ax14a.set_title(r'Null sensitivity at $\lambda$ = 6 $\mu$m', fontsize=13)
-    ax14a.legend(fontsize=9, loc='lower right')
+    ax14a.legend(fontsize=8, loc='lower right')
     ax14a.set_ylim(1e-14, 1e-2)
     ax14a.set_xlim(0, 500)
     ax14a.grid(True, alpha=0.3, which='both')
 
-    # Panel B: at 10 um (reference)
+    # --- Panel B: at 10 um (reference) ---
     wfe, N_diff, N_cmr85, N_cmr70, N_cmr30 = compute_tolerance_curves(10e-6)
 
     ax14b.semilogy(wfe * 1e9, N_diff, 'r-', lw=2.5,
@@ -841,9 +874,15 @@ def run_full_analysis():
     ax14b.semilogy(wfe * 1e9, N_cmr85, 'g-.', lw=2,
                    label='Common-mode (CMR=0.85)')
 
-    ax14b.axhline(y=3e-5, color='red', ls=':', lw=2, alpha=0.7)
-    ax14b.text(350, 3.5e-5, r'N = $3 \times 10^{-5}$ req',
-               fontsize=10, color='red')
+    # Both requirements at 10 um — 3.3x divergence visible here
+    N_tab2_10 = null_requirement_curve(10e-6)       # 3.0e-5
+    N_fig9_10 = null_requirement_curve_fig9(10e-6)   # 9.0e-6
+    ax14b.axhline(y=N_tab2_10, color='red', ls=':', lw=2, alpha=0.7,
+                  label=rf'Table~2 req. ($3\times10^{{-5}}$)')
+    ax14b.axhline(y=N_fig9_10, color='purple', ls=':', lw=2, alpha=0.7,
+                  label=rf'Fig.~9 req. ($9\times10^{{-6}}$)')
+    ax14b.axhline(y=N_tab2_10 / 9, color='orange', ls=':', lw=1.5, alpha=0.5,
+                  label=r'Budget/9 (Table~2)')
 
     for quality, wfe_nm, col in [(r'$\lambda$/100', 100, 'green'),
                                    (r'$\lambda$/50', 200, 'orange'),
@@ -853,18 +892,18 @@ def run_full_analysis():
             ax14b.text(wfe_nm + 5, 5e-4, quality, fontsize=9,
                        color=col, rotation=90)
 
-    ax14b.set_xlabel('Surface WFE RMS [nm]', fontsize=13)
+    ax14b.set_xlabel('Surface WFE RMS (nm)', fontsize=13)
     ax14b.set_ylabel('Null depth contribution', fontsize=13)
     ax14b.set_title(r'Null sensitivity at $\lambda$ = 10 $\mu$m', fontsize=13)
-    ax14b.legend(fontsize=9, loc='lower right')
+    ax14b.legend(fontsize=8, loc='lower right')
     ax14b.set_ylim(1e-14, 1e-2)
     ax14b.set_xlim(0, 500)
     ax14b.grid(True, alpha=0.3, which='both')
 
     fig14.tight_layout()
-    fig14.savefig('fig14_wfe_tolerance.pdf', dpi=300,
-                 bbox_inches='tight')
-    print("  Saved: fig14_wfe_tolerance.pdf")
+    fig14.savefig('fig14_wfe_tolerance.pdf', dpi=300, bbox_inches='tight')
+    fig14.savefig('fig14_wfe_tolerance.png', dpi=200, bbox_inches='tight')
+    print("  Saved: fig14_wfe_tolerance.pdf / .png")
 
     # ========================================================================
     # Figure 15: Wavelength-dependent sensitivity for top surfaces
@@ -895,13 +934,17 @@ def run_full_analysis():
         ax15.semilogy(lam_fine_um, N_vs_lam, color=colors_15[i],
                      ls=linestyles[i], lw=2, label=label)
 
-    # Requirement curve
-    N_req = null_requirement_curve(lam_fine)
-    ax15.semilogy(lam_fine_um, N_req, 'k:', lw=2.5, label='Requirement')
+    # Requirement curves — both derivations
+    N_req_tab2 = null_requirement_curve(lam_fine)
+    N_req_fig9 = null_requirement_curve_fig9(lam_fine)
+    ax15.semilogy(lam_fine_um, N_req_tab2, 'r:', lw=2.5,
+                  label='Table~2 req. (Ranganathan 2024)')
+    ax15.semilogy(lam_fine_um, N_req_fig9, color='purple', ls=':', lw=2.5,
+                  label='Fig.~9 req. (birbacher 2026)')
 
-    # Budget allocation (1/9 of requirement)
-    ax15.semilogy(lam_fine_um, N_req / 9, 'k--', lw=1, alpha=0.5,
-                 label='Budget alloc. (req/9)')
+    # Budget allocation (1/9 of Table~2 requirement)
+    ax15.semilogy(lam_fine_um, N_req_tab2 / 9, 'k--', lw=1, alpha=0.5,
+                 label='Budget alloc. (Table~2/9)')
 
     ax15.axvspan(6, 16, alpha=0.06, color='green')
     ax15.set_xlabel(r'Wavelength [$\mu$m]', fontsize=13)
@@ -915,9 +958,11 @@ def run_full_analysis():
     ax15.grid(True, alpha=0.3, which='both')
 
     fig15.tight_layout()
+    fig15.savefig('fig15_wavelength_sensitivity.png', dpi=200,
+                 bbox_inches='tight')
     fig15.savefig('fig15_wavelength_sensitivity.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig15_wavelength_sensitivity.pdf")
+    print("  Saved: fig15_wavelength_sensitivity.pdf / .png")
 
     # ========================================================================
     # Figure 16: Required surface quality specification
@@ -1000,9 +1045,11 @@ def run_full_analysis():
     ax16.legend(handles=handles, fontsize=8, loc='lower right', ncol=2)
 
     fig16.tight_layout()
+    fig16.savefig('fig16_quality_specs.png', dpi=200,
+                 bbox_inches='tight')
     fig16.savefig('fig16_quality_specs.pdf', dpi=300,
                  bbox_inches='tight')
-    print("  Saved: fig16_quality_specs.pdf")
+    print("  Saved: fig16_quality_specs.pdf / .png")
 
     # ========================================================================
     # Summary: Tiered quality specification table
@@ -1062,53 +1109,98 @@ def run_full_analysis():
               f"-> N = {N_check:.2e}  (target: {N_alloc:.2e}, "
               f"ratio: {N_check/N_alloc:.3f})")
 
-    # ---- CSV/TXT exports ----
-    # Surface sensitivity ranking
-    with open('m4_surface_ranking.csv', 'w', newline='') as csvf:
-        cw = csv.writer(csvf)
-        cw.writerow(['rank', 'surface', 'section', 'count',
-                      'is_differential', 'pre_fiber', 'post_combination',
-                      'cmr', 'wfe_total_nm', 'wfe_differential_nm',
-                      'N_null_6um', 'N_null_10um', 'N_null_16um',
-                      'quality_req_lambda_over', 'fom'])
-        for rank, r in enumerate(results, 1):
-            nc = r['null_contribution']
-            cw.writerow([
-                rank, r['name'], r['section'], r['count'],
-                r['is_differential'], r['pre_fiber'], r['post_combination'],
-                f'{r["cmr"]:.3f}',
-                f'{r["wfe_total_nm"]:.2f}', f'{r["wfe_differential_nm"]:.2f}',
-                f'{nc.get("6", 0.0):.6e}',
-                f'{nc.get("10", 0.0):.6e}',
-                f'{nc.get("16", 0.0):.6e}',
-                f'{r["quality_req_lambda_over"]:.1f}',
-                f'{r["fom"]:.6e}',
-            ])
-    print("  Exported: m4_surface_ranking.csv")
+    # ========================================================================
+    # CSV exports
+    # ========================================================================
+    import csv
 
-    # Tier classification summary
-    with open('m4_tier_classification.csv', 'w', newline='') as csvf:
-        cw = csv.writer(csvf)
-        cw.writerow(['surface', 'tier', 'quality_req_lambda_over',
-                      'wfe_differential_nm', 'mode'])
+    # --- Table 1: Full ranked surface sensitivity ---
+    with open('m4_surface_ranking.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Rank', 'Surface', 'Section', 'Count',
+                     'Is_differential', 'Pre_fiber', 'Post_combination',
+                     'CMR', 'WFE_total_nm', 'WFE_diff_nm',
+                     'dN_6um', 'dN_8um', 'dN_10um', 'dN_12um', 'dN_16um',
+                     'Coupling_loss_10um_pct',
+                     'Req_lambda_over', 'Current_lambda_over'])
+        for r in results:
+            w.writerow([
+                r['rank'], r['name'], r['section'], r['count'],
+                r['is_differential'], r['pre_fiber'], r['post_combination'],
+                f"{r['cmr']:.2f}",
+                f"{r['wfe_total_nm']:.1f}", f"{r['wfe_differential_nm']:.1f}",
+                f"{r['null_contribution'].get('6', 0.0):.3e}",
+                f"{r['null_contribution'].get('8', 0.0):.3e}",
+                f"{r['null_contribution'].get('10', 0.0):.3e}",
+                f"{r['null_contribution'].get('12', 0.0):.3e}",
+                f"{r['null_contribution'].get('16', 0.0):.3e}",
+                f"{r['coupling_loss'].get('10', 0.0) * 100:.2f}",
+                f"{r['quality_req_lambda_over']:.0f}",
+                f"{1.0 / r['quality_current_waves']:.0f}"
+                if r['quality_current_waves'] > 0 else '20',
+            ])
+    print("  Saved: m4_surface_ranking.csv")
+
+    # --- Table 2: Tier summary ---
+    with open('m4_tier_summary.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Tier', 'Surface', 'Req_lambda_over', 'WFE_diff_nm',
+                     'Type'])
         for r in tier1:
-            mode = 'differential' if r['is_differential'] else 'common-mode'
-            cw.writerow([r['name'], 1, f'{r["quality_req_lambda_over"]:.0f}',
-                          f'{r["wfe_differential_nm"]:.0f}', mode])
+            w.writerow(['1', r['name'], f"{r['quality_req_lambda_over']:.0f}",
+                         f"{r['wfe_differential_nm']:.0f}",
+                         'differential' if r['is_differential']
+                         else 'common-mode'])
         for r in tier2:
-            mode = 'differential' if r['is_differential'] else 'common-mode'
-            cw.writerow([r['name'], 2, f'{r["quality_req_lambda_over"]:.0f}',
-                          f'{r["wfe_differential_nm"]:.0f}', mode])
+            w.writerow(['2', r['name'], f"{r['quality_req_lambda_over']:.0f}",
+                         f"{r['wfe_differential_nm']:.0f}",
+                         'differential' if r['is_differential']
+                         else 'common-mode'])
         for r in tier3:
-            reason = ('post-fiber' if not r['pre_fiber'] else
-                      ('post-combination' if r['post_combination']
-                       else 'common-mode'))
-            cw.writerow([r['name'], 3, f'{r["quality_req_lambda_over"]:.0f}',
-                          f'{r["wfe_differential_nm"]:.0f}', reason])
-    print("  Exported: m4_tier_classification.csv")
+            reason = ('post-fiber' if not r['pre_fiber']
+                      else ('post-combination' if r['post_combination']
+                            else 'common-mode'))
+            w.writerow(['3', r['name'], f"{r['quality_req_lambda_over']:.0f}",
+                         f"{r['wfe_differential_nm']:.0f}", reason])
+    print("  Saved: m4_tier_summary.csv")
+
+    # --- Table 3: Total surface null vs requirement at key wavelengths ---
+    with open('m4_surface_null_totals.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['lambda_um', 'Sum_dN', 'N_req_Table2', 'N_req_Fig9',
+                     'Ratio_Table2', 'Ratio_Fig9'])
+        for lam_key in ['6', '8', '10', '12', '16']:
+            N_total = sum(r['null_contribution'].get(lam_key, 0.0)
+                          for r in results)
+            lam_m = float(lam_key) * 1e-6
+            req_tab2 = null_requirement_curve(lam_m)
+            req_fig9 = null_requirement_curve_fig9(lam_m)
+            w.writerow([lam_key, f'{N_total:.3e}',
+                         f'{req_tab2:.3e}', f'{req_fig9:.3e}',
+                         f'{N_total / req_tab2:.1f}',
+                         f'{N_total / req_fig9:.1f}'])
+    print("  Saved: m4_surface_null_totals.csv")
+
+    # --- Table 4: Spec round-trip verification (top 8 surfaces at 6 um) ---
+    with open('m4_spec_roundtrip.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Surface', 'Req_lambda_over', 'sigma_diff_nm',
+                     'N_check', 'N_alloc', 'Ratio'])
+        lam_v = 6e-6
+        N_alloc = 1e-5 / 9
+        for r in results[:8]:
+            spec = r['quality_req_lambda_over']
+            sigma_phys = lam_v / spec
+            cmr_eff = max(1.0 - r['cmr'], 0.01)
+            sigma_diff = sigma_phys * cmr_eff
+            N_check = null_from_differential_wfe(sigma_diff, lam_v)
+            w.writerow([r['name'], f'{spec:.0f}',
+                         f'{sigma_diff * 1e9:.1f}', f'{N_check:.3e}',
+                         f'{N_alloc:.3e}', f'{N_check / N_alloc:.3f}'])
+    print("  Saved: m4_spec_roundtrip.csv")
 
     plt.close('all')
-    print("\nAll figures and tables saved. Module 4 v3.0 complete.")
+    print("\nAll figures and tables saved. Module 4 v3.1 complete.")
 
     return results
 

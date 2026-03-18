@@ -118,6 +118,7 @@ from typing import Optional
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 # =============================================================================
 # Import canonical material / fiber functions (wavelength in MICROMETRES)
@@ -224,11 +225,11 @@ def null_requirement_curve(wavelengths: ArrayLike) -> NDArray:
 
     Anchor points:
         4 um -> 2.0e-5   [B26 Table 2]
-        6 um -> 1.0e-5   [B26 body text]
+        6 um -> 1.0e-5   [Paper Table 5]
         8 um -> 6.8e-6   [B26 Table 2, most stringent]
-       10 um -> 3.0e-5   [B26 body text]
+       10 um -> 3.0e-5   [Paper Table 5]
        12 um -> 1.8e-5   [B26 Table 2]
-       16 um -> 6.0e-5   [B26 Table 2, log-interp 12+18 um]
+       16 um -> 6.0e-5   [Paper Table 5]
        18 um -> 1.0e-4   [B26 Table 2]
 
     Interpolated in log-space between anchors.
@@ -1430,74 +1431,124 @@ def run_full_analysis() -> dict:
     print("  Saved: fig11_monte_carlo_null.png")
 
     # ==================================================================
-    # Figure 12: OPD and BS tolerance curves
+    # Figure 12: OPD and BS tolerance curves (v7)
     # ==================================================================
-    print("\n--- Figure 12: OPD tolerance curves ---")
+    # Panel A: Null depth vs OPD RMS with per-term budget diamonds.
+    # Panel B: N_BS / N_req(lambda) ratio plot — gap at NICE Dd.
+    #
+    # v7 changes from v1:
+    #   - Dropped 4 um curve (outside science band)
+    #   - Panel A: replaced flat horizontal requirement lines with
+    #     per-curve colour-matched diamonds at N_req(lam)/9
+    #   - Panel A: extended x-axis to 15 nm (all diamonds visible)
+    #   - Panel B: ratio plot replaces raw null depth, so each curve
+    #     is normalised to its own wavelength-specific requirement.
+    #     Horizontal lines at ratio = 1 (full req) and 1/9 (per-term).
+    #   - No asserted "recommended" specs — only NICE-demonstrated Dd.
+    # ==================================================================
+    print("\n--- Figure 12: OPD and BS tolerance curves (v7) ---")
+
+    N_BUDGET_TERMS = 9
+    fig12_wavelengths_um = [6, 8, 10, 12, 16]
+    fig12_colors = {
+        6: '#3b528b', 8: '#21918c', 10: '#5ec962',
+        12: '#fde725', 16: '#d62728',
+    }
 
     fig12, (ax12a, ax12b) = plt.subplots(1, 2, figsize=(13, 6))
 
     # --- Panel A: Null depth vs OPD RMS ---
-    opd_range = np.linspace(0, 5e-9, 200)
+    opd_range = np.linspace(0, 15e-9, 1000)
 
-    test_wavelengths = [4e-6, 6e-6, 8e-6, 10e-6, 12e-6, 16e-6]
-    colors_12 = ['#440154', '#3b528b', '#21918c',
-                 '#5ec962', '#fde725', '#d62728']
-
-    for lam, col in zip(test_wavelengths, colors_12):
+    for lam_um in fig12_wavelengths_um:
+        lam = lam_um * 1e-6
+        col = fig12_colors[lam_um]
         dphi = opd_to_phase(opd_range, lam)
         N_opd = 0.25 * dphi ** 2
         ax12a.semilogy(opd_range * 1e9, N_opd, '-', color=col, lw=2,
-                       label=r'{:.0f} $\mu$m'.format(lam * 1e6))
+                       label=rf'{lam_um} $\mu$m')
 
-    ax12a.axhline(y=1e-5, color='red', ls=':', alpha=0.6)
-    ax12a.text(4.1, 1.2e-5, r'N = $10^{-5}$', fontsize=9, color='red')
-    ax12a.axhline(y=3e-5, color='orange', ls=':', alpha=0.6)
-    ax12a.text(4.1, 3.5e-5, r'N = $3 \times 10^{-5}$',
-               fontsize=9, color='orange')
+        # Per-term budget diamond
+        N_budget = null_requirement_curve(lam) / N_BUDGET_TERMS
+        opd_cross = lam * np.sqrt(N_budget) / np.pi
+        if opd_cross * 1e9 <= 15:
+            ax12a.plot(opd_cross * 1e9, N_budget, 'D',
+                       color=col, ms=9, mec='black', mew=0.8, zorder=5)
 
     ax12a.axvline(x=1.2, color='gray', ls='--', alpha=0.6)
-    ax12a.text(1.3, 3e-4, 'NICE\nmeasured\n(1.2 nm)',
+    ax12a.text(1.45, 3e-4, 'NICE\nmeasured\n(1.2 nm)',
                fontsize=9, color='gray')
 
-    ax12a.set_xlabel('OPD RMS [nm]', fontsize=13)
+    handles_a, _ = ax12a.get_legend_handles_labels()
+    handles_a.append(Line2D([0], [0], marker='D', color='gray', ls='',
+                            ms=9, mec='black', mew=0.8,
+                            label=r'Per-term budget ($N_\mathrm{req}/9$)'))
+    ax12a.legend(handles=handles_a, fontsize=9, title='Wavelength',
+                 loc='lower right')
+
+    ax12a.set_xlabel('OPD RMS (nm)', fontsize=13)
     ax12a.set_ylabel('Null depth (OPD term only)', fontsize=13)
     ax12a.set_title('Null depth vs OPD stability', fontsize=13)
-    ax12a.legend(fontsize=10, title='Wavelength')
     ax12a.set_ylim(1e-8, 1e-2)
-    ax12a.set_xlim(0, 5)
+    ax12a.set_xlim(0, 15)
     ax12a.grid(True, alpha=0.3, which='both')
 
-    # --- Panel B: BS thickness mismatch tolerance ---
-    delta_d_range = np.linspace(0, 1e-6, 200)
+    # --- Panel B: Ratio plot — N_BS / N_req(lambda) vs Dd ---
+    delta_d_range = np.linspace(1e-9, 1e-6, 2000)
 
-    for lam, col in zip([6e-6, 8e-6, 10e-6, 12e-6, 16e-6], colors_12[1:]):
+    for lam_um in fig12_wavelengths_um:
+        lam = lam_um * 1e-6
+        col = fig12_colors[lam_um]
         dphi_bs = bs_chromatic_phase_error(lam, delta_d_range, 'multiband')
         N_bs = 0.25 * dphi_bs ** 2
-        N_bs = np.maximum(N_bs, 1e-15)
-        ax12b.semilogy(delta_d_range * 1e6, N_bs, '-', color=col, lw=2,
-                       label=r'{:.0f} $\mu$m'.format(lam * 1e6))
+        N_req = null_requirement_curve(lam)
+        ratio_plot = np.maximum(N_bs / N_req, 1e-8)
+        ax12b.semilogy(delta_d_range * 1e6, ratio_plot, '-', color=col, lw=2,
+                       label=rf'{lam_um} $\mu$m')
 
-    ax12b.axhline(y=1e-5, color='red', ls=':', alpha=0.6)
-    ax12b.text(0.82, 1.2e-5, r'N = $10^{-5}$', fontsize=9, color='red')
+    # Compliance thresholds
+    ax12b.axhline(y=1.0, color='black', ls='-', lw=1.5, alpha=0.7)
+    ax12b.text(0.62, 1.4, r'$N_\mathrm{BS} = N_\mathrm{req}$',
+               fontsize=10, color='black', alpha=0.7)
+    ax12b.axhline(y=1.0 / N_BUDGET_TERMS, color='black', ls='--',
+                  lw=1.2, alpha=0.5)
+    ax12b.text(0.62, 1.0 / N_BUDGET_TERMS * 1.5,
+               r'Per-term ($N_\mathrm{req}/9$)',
+               fontsize=9, color='black', alpha=0.5)
 
-    ax12b.axvline(x=0.2, color='gray', ls='--', alpha=0.6)
-    ax12b.text(0.22, 3e-4, r'NICE req' + '\n' + r'(0.2 $\mu$m)',
-               fontsize=9, color='gray')
+    # Compliant / non-compliant shading
+    ax12b.axhspan(1e-3, 1.0, color='green', alpha=0.03)
+    ax12b.axhspan(1.0, 1e3, color='red', alpha=0.03)
 
-    ax12b.set_xlabel(r'BS thickness mismatch $\Delta d$ [$\mu$m]',
+    # NICE spec — measured fact, not a recommendation
+    ax12b.axvline(x=0.2, color='gray', ls='--', alpha=0.7, lw=1.5)
+    ax12b.text(0.21, 500, r'NICE spec (0.2 $\mu$m)',
+               fontsize=9, color='gray', va='top')
+
+    ax12b.legend(fontsize=9, title='Wavelength', loc='lower right')
+    ax12b.set_xlabel(r'BS thickness mismatch $\Delta d$ ($\mu$m)',
                      fontsize=13)
-    ax12b.set_ylabel('Null depth (chromatic term only)', fontsize=13)
-    ax12b.set_title('Null depth vs BS thickness mismatch', fontsize=13)
-    ax12b.legend(fontsize=10, title='Wavelength')
-    ax12b.set_ylim(1e-12, 1e-2)
+    ax12b.set_ylabel(r'$N_\mathrm{BS}\;/\;N_\mathrm{req}(\lambda)$',
+                     fontsize=13)
+    ax12b.set_title('BS chromatic null relative to requirement', fontsize=13)
+    ax12b.set_ylim(1e-3, 1e3)
     ax12b.set_xlim(0, 1.0)
     ax12b.grid(True, alpha=0.3, which='both')
 
     fig12.tight_layout()
-    fig12.savefig('fig12_opd_tolerance.png', dpi=200,
-                  bbox_inches='tight')
+    fig12.savefig('fig12_opd_tolerance.png', dpi=200, bbox_inches='tight')
+    fig12.savefig('fig12_opd_tolerance.pdf', dpi=300, bbox_inches='tight')
     plt.close()
-    print("  Saved: fig12_opd_tolerance.png")
+    print("  Saved: fig12_opd_tolerance.png / .pdf")
+
+    # Gap factors at NICE spec for cross-reference with prose
+    print("  Gap factors at NICE Dd = 0.2 um:")
+    for lam_um in fig12_wavelengths_um:
+        lam = lam_um * 1e-6
+        dphi_gap = bs_chromatic_phase_error(lam, 0.2e-6, 'multiband')
+        N_gap = 0.25 * dphi_gap ** 2
+        req_gap = null_requirement_curve(lam)
+        print(f"    {lam_um:>2d} um: N_BS/N_req = {N_gap/req_gap:.1f}x")
 
     # ==================================================================
     # Summary Table
@@ -1571,8 +1622,91 @@ def run_full_analysis() -> dict:
               f"{top3[1][0]} ({top3[1][1]:.0f}%), "
               f"{top3[2][0]} ({top3[2][1]:.0f}%)")
 
+    # ==================================================================
+    # CSV exports
+    # ==================================================================
+    import csv
+
+    # --- Table 1: Null depth budget at key wavelengths ---
+    lam_targets = [6e-6, 8e-6, 10e-6, 12e-6, 16e-6]
+    budget_rows = [
+        ('Requirement', None),
+        ('Phase systematic', 'N_phase_systematic'),
+        ('  OPD mean only', 'N_opd_mean'),
+        ('  BS chrom only', 'N_chromatic'),
+        ('  cross term', 'N_cross_term'),
+        ('OPD RMS', 'N_opd_rms'),
+        ('dI mean', 'N_dI_mean'),
+        ('dI RMS', 'N_dI_rms'),
+        ('Pol phase', 'N_pol_phase'),
+        ('Pol intensity', 'N_pol_intensity'),
+        ('Diff WFE', 'N_wfe'),
+        ('Pointing', 'N_pointing'),
+        ('Shear', 'N_shear'),
+        ('TOTAL', 'N_total'),
+    ]
+
+    with open('m3_null_budget_nice.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Error term']
+                    + [f'{lam*1e6:.0f} um' for lam in lam_targets])
+        for name, key in budget_rows:
+            vals = []
+            for lam in lam_targets:
+                if key is None:
+                    vals.append(float(null_requirement_curve(lam)))
+                else:
+                    idx = np.argmin(np.abs(wavelengths - lam))
+                    vals.append(float(budget_nice[key][idx]))
+            w.writerow([name] + [f'{v:.3e}' for v in vals])
+    print("  Saved: m3_null_budget_nice.csv")
+
+    with open('m3_null_budget_life.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Error term']
+                    + [f'{lam*1e6:.0f} um' for lam in lam_targets])
+        for name, key in budget_rows:
+            vals = []
+            for lam in lam_targets:
+                if key is None:
+                    vals.append(float(null_requirement_curve(lam)))
+                else:
+                    idx = np.argmin(np.abs(wavelengths - lam))
+                    vals.append(float(budget_life[key][idx]))
+            w.writerow([name] + [f'{v:.3e}' for v in vals])
+    print("  Saved: m3_null_budget_life.csv")
+
+    # --- Table 2: OPD tolerance crossings (per-term budget) ---
+    with open('m3_opd_tolerance.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['lambda_um', 'N_req', 'N_req_per_term',
+                     'OPD_max_full_nm', 'OPD_max_per_term_nm'])
+        for lam in lam_targets:
+            N_req = float(null_requirement_curve(lam))
+            N_term = N_req / N_BUDGET_TERMS
+            opd_full = lam * np.sqrt(N_req) / np.pi
+            opd_term = lam * np.sqrt(N_term) / np.pi
+            w.writerow([f'{lam*1e6:.0f}', f'{N_req:.3e}', f'{N_term:.3e}',
+                         f'{opd_full*1e9:.2f}', f'{opd_term*1e9:.2f}'])
+    print("  Saved: m3_opd_tolerance.csv")
+
+    # --- Table 3: BS chromatic gap factors at NICE Dd = 0.2 um ---
+    with open('m3_bs_chromatic_gap.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['lambda_um', 'N_req', 'N_BS_per_surface',
+                     'ratio_N_BS_over_N_req', 'Delta_d_um'])
+        dd_nice = 0.2e-6
+        for lam in lam_targets:
+            N_req = float(null_requirement_curve(lam))
+            dphi_bs = bs_chromatic_phase_error(lam, dd_nice, 'multiband')
+            N_bs = 0.25 * float(dphi_bs) ** 2
+            ratio = N_bs / N_req if N_req > 0 else 0.0
+            w.writerow([f'{lam*1e6:.0f}', f'{N_req:.3e}', f'{N_bs:.3e}',
+                         f'{ratio:.2f}', f'{dd_nice*1e6:.1f}'])
+    print("  Saved: m3_bs_chromatic_gap.csv")
+
     plt.close('all')
-    print("\nAll figures saved. Module 3 v3.2 complete.")
+    print("\nAll figures and tables saved. Module 3 v3.2 complete.")
 
     return {
         'budget_nice': budget_nice,
