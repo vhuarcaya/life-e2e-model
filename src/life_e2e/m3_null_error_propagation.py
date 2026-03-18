@@ -116,7 +116,6 @@ import warnings
 from typing import Optional
 
 import numpy as np
-import csv
 from numpy.typing import ArrayLike, NDArray
 import matplotlib.pyplot as plt
 
@@ -225,11 +224,11 @@ def null_requirement_curve(wavelengths: ArrayLike) -> NDArray:
 
     Anchor points:
         4 um -> 2.0e-5   [B26 Table 2]
-        6 um -> 1.0e-5   [Paper Table 5]
+        6 um -> 1.0e-5   [B26 body text]
         8 um -> 6.8e-6   [B26 Table 2, most stringent]
-       10 um -> 3.0e-5   [Paper Table 5]
+       10 um -> 3.0e-5   [B26 body text]
        12 um -> 1.8e-5   [B26 Table 2]
-       16 um -> 6.0e-5   [Paper Table 5]
+       16 um -> 6.0e-5   [B26 Table 2, log-interp 12+18 um]
        18 um -> 1.0e-4   [B26 Table 2]
 
     Interpolated in log-space between anchors.
@@ -1281,10 +1280,10 @@ def run_full_analysis() -> dict:
     ax9b.grid(True, alpha=0.3, which='both')
 
     fig9.tight_layout()
-    fig9.savefig('fig9_null_error_budget.pdf', dpi=300,
+    fig9.savefig('fig9_null_error_budget.png', dpi=200,
                  bbox_inches='tight')
     plt.close()
-    print("  Saved: fig9_null_error_budget.pdf")
+    print("  Saved: fig9_null_error_budget.png")
 
     # ==================================================================
     # Figure 10: Error budget breakdown at key wavelengths (bar chart)
@@ -1350,10 +1349,10 @@ def run_full_analysis() -> dict:
     fig10.suptitle('Error budget breakdown (NICE-demonstrated performance)',
                    fontsize=14, y=1.02)
     fig10.tight_layout()
-    fig10.savefig('fig10_error_breakdown.pdf', dpi=300,
+    fig10.savefig('fig10_error_breakdown.png', dpi=200,
                   bbox_inches='tight')
     plt.close()
-    print("  Saved: fig10_error_breakdown.pdf")
+    print("  Saved: fig10_error_breakdown.png")
 
     # ==================================================================
     # Figure 11: Monte Carlo null depth distributions
@@ -1425,10 +1424,10 @@ def run_full_analysis() -> dict:
         r'Monte Carlo null depth distributions (10$^5$ realisations, '
         'NICE performance)', fontsize=13, y=1.02)
     fig11.tight_layout()
-    fig11.savefig('fig11_monte_carlo_null.pdf', dpi=300,
+    fig11.savefig('fig11_monte_carlo_null.png', dpi=200,
                   bbox_inches='tight')
     plt.close()
-    print("  Saved: fig11_monte_carlo_null.pdf")
+    print("  Saved: fig11_monte_carlo_null.png")
 
     # ==================================================================
     # Figure 12: OPD and BS tolerance curves
@@ -1495,10 +1494,10 @@ def run_full_analysis() -> dict:
     ax12b.grid(True, alpha=0.3, which='both')
 
     fig12.tight_layout()
-    fig12.savefig('fig12_opd_tolerance.pdf', dpi=300,
+    fig12.savefig('fig12_opd_tolerance.png', dpi=200,
                   bbox_inches='tight')
     plt.close()
-    print("  Saved: fig12_opd_tolerance.pdf")
+    print("  Saved: fig12_opd_tolerance.png")
 
     # ==================================================================
     # Summary Table
@@ -1572,74 +1571,8 @@ def run_full_analysis() -> dict:
               f"{top3[1][0]} ({top3[1][1]:.0f}%), "
               f"{top3[2][0]} ({top3[2][1]:.0f}%)")
 
-    # ---- CSV/TXT exports ----
-    # Full null budget vs wavelength (NICE-demonstrated)
-    with open('m3_null_budget_nice.csv', 'w', newline='') as csvf:
-        cw = csv.writer(csvf)
-        cw.writerow(['wavelength_um', 'N_total', 'N_opd_mean', 'N_chromatic',
-                      'N_cross_term', 'N_opd_rms', 'N_pol_phase',
-                      'N_dI_mean', 'N_dI_rms', 'N_wfe', 'N_pointing',
-                      'N_shear', 'N_pol_intensity', 'N_requirement'])
-        for i, lam in enumerate(wavelengths):
-            N_req = null_requirement_curve(lam)
-            cw.writerow([
-                f'{lam*1e6:.2f}',
-                f'{budget_nice["N_total"][i]:.6e}',
-                f'{budget_nice["N_opd_mean"][i]:.6e}',
-                f'{budget_nice["N_chromatic"][i]:.6e}',
-                f'{budget_nice["N_cross_term"][i]:.6e}',
-                f'{budget_nice["N_opd_rms"][i]:.6e}',
-                f'{budget_nice["N_pol_phase"][i]:.6e}',
-                f'{budget_nice["N_dI_mean"][i]:.6e}',
-                f'{budget_nice["N_dI_rms"][i]:.6e}',
-                f'{budget_nice["N_wfe"][i]:.6e}',
-                f'{budget_nice["N_pointing"][i]:.6e}',
-                f'{budget_nice["N_shear"][i]:.6e}',
-                f'{budget_nice["N_pol_intensity"][i]:.6e}',
-                f'{N_req:.6e}',
-            ])
-    print("  Exported: m3_null_budget_nice.csv")
-
-    # Full null budget vs wavelength (LIFE requirement)
-    with open('m3_null_budget_life.csv', 'w', newline='') as csvf:
-        cw = csv.writer(csvf)
-        cw.writerow(['wavelength_um', 'N_total', 'N_opd_mean', 'N_chromatic',
-                      'N_cross_term', 'N_opd_rms', 'N_pol_phase',
-                      'N_dI_mean', 'N_dI_rms', 'N_wfe', 'N_pointing',
-                      'N_shear', 'N_pol_intensity', 'N_requirement'])
-        for i, lam in enumerate(wavelengths):
-            N_req = null_requirement_curve(lam)
-            cw.writerow([
-                f'{lam*1e6:.2f}',
-                f'{budget_life["N_total"][i]:.6e}',
-                f'{budget_life["N_opd_mean"][i]:.6e}',
-                f'{budget_life["N_chromatic"][i]:.6e}',
-                f'{budget_life["N_cross_term"][i]:.6e}',
-                f'{budget_life["N_opd_rms"][i]:.6e}',
-                f'{budget_life["N_pol_phase"][i]:.6e}',
-                f'{budget_life["N_dI_mean"][i]:.6e}',
-                f'{budget_life["N_dI_rms"][i]:.6e}',
-                f'{budget_life["N_wfe"][i]:.6e}',
-                f'{budget_life["N_pointing"][i]:.6e}',
-                f'{budget_life["N_shear"][i]:.6e}',
-                f'{budget_life["N_pol_intensity"][i]:.6e}',
-                f'{N_req:.6e}',
-            ])
-    print("  Exported: m3_null_budget_life.csv")
-
-    # NICE validation summary
-    with open('m3_nice_validation.csv', 'w', newline='') as csvf:
-        cw = csv.writer(csvf)
-        cw.writerow(['quantity', 'value'])
-        for key in ['N_opd_mean', 'N_opd_rms', 'N_dI_mean', 'N_dI_rms',
-                     'N_total', 'N_measured']:
-            cw.writerow([key, f'{nice[key]:.6e}'])
-        cw.writerow(['ratio_model_over_measured',
-                      f'{nice["N_total"] / nice["N_measured"]:.4f}'])
-    print("  Exported: m3_nice_validation.csv")
-
     plt.close('all')
-    print("\nAll figures and tables saved. Module 3 v3.2 complete.")
+    print("\nAll figures saved. Module 3 v3.2 complete.")
 
     return {
         'budget_nice': budget_nice,
