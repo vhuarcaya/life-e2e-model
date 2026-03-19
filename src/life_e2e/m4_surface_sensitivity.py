@@ -829,7 +829,7 @@ def run_full_analysis():
     wfe, N_diff, N_cmr85, N_cmr70, N_cmr30 = compute_tolerance_curves(6e-6)
 
     ax14a.semilogy(wfe * 1e9, N_diff, 'r-', lw=2.5,
-                   label='Differential (APS, MMZ fold)')
+                   label='Arm-specific (APS, roof, MMZ fold)')
     ax14a.semilogy(wfe * 1e9, N_cmr30, 'm-', lw=2,
                    label='BS (CMR=0.30)')
     ax14a.semilogy(wfe * 1e9, N_cmr70, 'b--', lw=2,
@@ -841,11 +841,11 @@ def run_full_analysis():
     N_tab2_6 = null_requirement_curve(6e-6)       # 1.0e-5
     N_fig9_6 = null_requirement_curve_fig9(6e-6)   # 1.5e-5
     ax14a.axhline(y=N_tab2_6, color='red', ls=':', lw=2, alpha=0.7,
-                  label=rf'Table~2 req. ($10^{{-5}}$)')
+                  label=rf'Earlier requirement ($10^{{-5}}$)')
     ax14a.axhline(y=N_fig9_6, color='purple', ls=':', lw=2, alpha=0.7,
-                  label=rf'Fig.~9 req. ($1.5\times10^{{-5}}$)')
+                  label=rf'Refined requirement ($1.5\times10^{{-5}}$)')
     ax14a.axhline(y=N_tab2_6 / 9, color='orange', ls=':', lw=1.5, alpha=0.5,
-                  label=r'Budget/9 (Table~2)')
+                  label=r'Per-term allocation ($N_\mathrm{req}/9$)')
 
     for quality, wfe_nm, col in [(r'$\lambda$/100', 60, 'green'),
                                    (r'$\lambda$/50', 120, 'orange'),
@@ -856,7 +856,7 @@ def run_full_analysis():
 
     ax14a.set_xlabel('Surface WFE RMS (nm)', fontsize=13)
     ax14a.set_ylabel('Null depth contribution', fontsize=13)
-    ax14a.set_title(r'Null sensitivity at $\lambda$ = 6 $\mu$m', fontsize=13)
+    ax14a.set_title(r'Surface WFE contribution to null depth ($\lambda = 6\,\mu$m)', fontsize=13)
     ax14a.legend(fontsize=8, loc='lower right')
     ax14a.set_ylim(1e-14, 1e-2)
     ax14a.set_xlim(0, 500)
@@ -866,7 +866,7 @@ def run_full_analysis():
     wfe, N_diff, N_cmr85, N_cmr70, N_cmr30 = compute_tolerance_curves(10e-6)
 
     ax14b.semilogy(wfe * 1e9, N_diff, 'r-', lw=2.5,
-                   label='Differential (APS, MMZ fold)')
+                   label='Arm-specific (APS, roof, MMZ fold)')
     ax14b.semilogy(wfe * 1e9, N_cmr30, 'm-', lw=2,
                    label='BS (CMR=0.30)')
     ax14b.semilogy(wfe * 1e9, N_cmr70, 'b--', lw=2,
@@ -878,11 +878,11 @@ def run_full_analysis():
     N_tab2_10 = null_requirement_curve(10e-6)       # 3.0e-5
     N_fig9_10 = null_requirement_curve_fig9(10e-6)   # 9.0e-6
     ax14b.axhline(y=N_tab2_10, color='red', ls=':', lw=2, alpha=0.7,
-                  label=rf'Table~2 req. ($3\times10^{{-5}}$)')
+                  label=rf'Earlier requirement ($3\times10^{{-5}}$)')
     ax14b.axhline(y=N_fig9_10, color='purple', ls=':', lw=2, alpha=0.7,
-                  label=rf'Fig.~9 req. ($9\times10^{{-6}}$)')
+                  label=rf'Refined requirement ($9\times10^{{-6}}$)')
     ax14b.axhline(y=N_tab2_10 / 9, color='orange', ls=':', lw=1.5, alpha=0.5,
-                  label=r'Budget/9 (Table~2)')
+                  label=r'Per-term allocation ($N_\mathrm{req}/9$)')
 
     for quality, wfe_nm, col in [(r'$\lambda$/100', 100, 'green'),
                                    (r'$\lambda$/50', 200, 'orange'),
@@ -894,7 +894,7 @@ def run_full_analysis():
 
     ax14b.set_xlabel('Surface WFE RMS (nm)', fontsize=13)
     ax14b.set_ylabel('Null depth contribution', fontsize=13)
-    ax14b.set_title(r'Null sensitivity at $\lambda$ = 10 $\mu$m', fontsize=13)
+    ax14b.set_title(r'Surface WFE contribution to null depth ($\lambda = 10\,\mu$m)', fontsize=13)
     ax14b.legend(fontsize=8, loc='lower right')
     ax14b.set_ylim(1e-14, 1e-2)
     ax14b.set_xlim(0, 500)
@@ -938,19 +938,19 @@ def run_full_analysis():
     N_req_tab2 = null_requirement_curve(lam_fine)
     N_req_fig9 = null_requirement_curve_fig9(lam_fine)
     ax15.semilogy(lam_fine_um, N_req_tab2, 'r:', lw=2.5,
-                  label='Table~2 req. (Ranganathan 2024)')
+                  label='Earlier requirement')
     ax15.semilogy(lam_fine_um, N_req_fig9, color='purple', ls=':', lw=2.5,
-                  label='Fig.~9 req. (birbacher 2026)')
+                  label='Refined requirement')
 
-    # Budget allocation (1/9 of Table~2 requirement)
+    # Budget allocation (1/9 of earlier requirement)
     ax15.semilogy(lam_fine_um, N_req_tab2 / 9, 'k--', lw=1, alpha=0.5,
-                 label='Budget alloc. (Table~2/9)')
+                 label=r'Per-term allocation ($N_\mathrm{req}/9$)')
 
     ax15.axvspan(6, 16, alpha=0.06, color='green')
-    ax15.set_xlabel(r'Wavelength [$\mu$m]', fontsize=13)
+    ax15.set_xlabel(r'Wavelength ($\mu$m)', fontsize=13)
     ax15.set_ylabel('Null depth contribution', fontsize=13)
     ax15.set_title(
-        'Wavelength-dependent null sensitivity -- top 6 surfaces',
+        'Wavelength-dependent null sensitivity (top 6 surfaces)',
         fontsize=13)
     ax15.legend(fontsize=9, loc='upper right')
     ax15.set_ylim(1e-9, 1e-2)

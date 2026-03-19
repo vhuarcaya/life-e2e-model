@@ -40,7 +40,7 @@ v2.0 engine changes:
   4. CaF₂ absorption: coefficient 0.03 (not 0.01)
   5. BS chromatic OPD: wavelength-dependent substrate (CaF₂ < 10µm, ZnSe >= 10µm)
   6. Per-polarization null computation (exact, not effective δφ/δI)
-  7. Three null requirement sets (photon_noise_floor, Module 3, SNR-based/Birbacher 2026)
+  7. Three null requirement sets (earlier/Ranganathan 2024, refined/Birbacher 2026, flat)
   8. Factored per-realization computation (eliminates WFE-zero code duplication)
   9. Vectorized wavelength loop for performance
   10. Consistent mirror count with paper optical train
@@ -48,7 +48,7 @@ v2.0 engine changes:
 v3.0 figure changes:
   - All figures consistent with paper Table 7 values
   - Analytical reference lines from Module 3 compute_null_budget()
-  - Both requirement sets (photon-noise floor + SNR-based, both from Birbacher+2026) shown
+  - Both requirement sets (earlier/Ranganathan 2024 + refined/Birbacher 2026) shown
   - LaTeX math mode in all plot labels
   - Proper figure numbering matching paper
 
@@ -71,6 +71,7 @@ v3.1 WFE accumulation fix (March 2026):
 
 import os
 import time
+import csv
 import warnings
 import numpy as np
 import matplotlib
@@ -345,15 +346,16 @@ def get_null_requirements() -> Dict[str, Dict[float, float]]:
     Returns dict of {source_name: {wavelength: N_req}}.
     """
     return {
-        'photon_noise_floor': {
-            # From Birbacher et al. 2026, body text (6, 10 um)
-            # and Table 2 (8, 12 um); 16 um log-interp from 12+18 um
+        'earlier': {
+            # Earlier requirement: Ranganathan et al. 2024 (SPIE 130951H),
+            # Table 2 body text (6, 10 um) and columns (8, 12 um);
+            # 16 um log-interpolated from 12 + 18 um.
             6.0: 1.0e-5, 8.0: 6.8e-6, 10.0: 3.0e-5,
             12.0: 1.8e-5, 16.0: 6.0e-5,
         },
-        'birbacher': {
-            # From Birbacher et al. 2026, Table 1
-            # Derived from 10% SNR degradation methodology
+        'refined': {
+            # Refined requirement: Birbacher et al. 2026 (arXiv 2602.02279),
+            # Table 1 (8, 10 um) and Fig. 9 (6, 12, 16 um).
             6.0: 1.5e-5, 8.0: 7.0e-6, 10.0: 9.0e-6,
             12.0: 4.0e-5, 16.0: 8.0e-5,
         },
@@ -709,10 +711,10 @@ def _print_summary(results: dict) -> None:
     # --- Technology gap assessment ---
     print()
     print("--- Technology Gap Assessment ---")
-    birbacher_reqs = req_sets['birbacher']
+    refined_reqs = req_sets['refined']
     for j, lam in enumerate(wavelengths_um):
         N_mean = np.mean(null_depths[:, j])
-        N_req = birbacher_reqs.get(lam, 1e-5)
+        N_req = refined_reqs.get(lam, 1e-5)
         gap = N_mean / N_req
         surface_factor = gap**(1/4)
         print(f"λ = {lam:5.1f} µm: N_mean/N_req = {gap:6.1f}×, "
@@ -889,8 +891,8 @@ def generate_figure_11(results, analytical):
 
     # Requirement sets
     req_sets = get_null_requirements()
-    req_pnf = req_sets['photon_noise_floor']
-    req_birb = req_sets['birbacher']
+    req_earlier = req_sets['earlier']
+    req_refined = req_sets['refined']
 
     # Three representative wavelengths
     plot_lams = [6.0, 10.0, 16.0]
@@ -907,7 +909,8 @@ def generate_figure_11(results, analytical):
         N_mean = np.mean(N_col)
         N_median = np.median(N_col)
         N_p95 = np.percentile(N_col, 95)
-        N_req = req_pnf.get(lam, 1e-5)
+        N_req_e = req_earlier.get(lam, 1e-5)
+        N_req_r = req_refined.get(lam, 1e-5)
         N_analytical = analytical.get(lam, None)
 
         # Histogram in log space
@@ -922,37 +925,40 @@ def generate_figure_11(results, analytical):
                    label=f'Median: {N_median:.1e}')
         ax.axvline(np.log10(N_p95), color='orange', ls='-', lw=1.5,
                    label=f'95th %: {N_p95:.1e}')
-        ax.axvline(np.log10(N_req), color='red', ls=':', lw=2,
-                   label=f'Req: {N_req:.1e}')
+        ax.axvline(np.log10(N_req_e), color='red', ls=':', lw=2,
+                   label=f'Earlier req.: {N_req_e:.1e}')
+        ax.axvline(np.log10(N_req_r), color='purple', ls=':', lw=1.5,
+                   label=f'Refined req.: {N_req_r:.1e}')
 
         if N_analytical is not None and N_analytical > 0:
             ax.axvline(np.log10(N_analytical), color='purple', ls='-.',
-                       lw=1.5, label=f'Analytical: {N_analytical:.1e}')
+                       lw=1.5, label=f'Analytical budget: {N_analytical:.1e}')
 
-        ax.set_xlabel(r'$\log_{10}$(Null Depth)')
+        ax.set_xlabel(r'$\log_{10}$(Null depth)')
         ax.set_title(r'$\lambda = %d\,\mu$m' % int(lam))
         ax.legend(fontsize=7, loc='upper left')
         ax.grid(True, alpha=0.3)
 
         # Print summary
-        gap = N_mean / N_req
+        gap = N_mean / N_req_e
         print(f"  {lam:.0f} µm: Mean={N_mean:.2e}, Median={N_median:.2e}, "
-              f"95th={N_p95:.2e}, Req={N_req:.1e}, Gap={gap:.1f}x")
+              f"95th={N_p95:.2e}, Req={N_req_e:.1e}, Gap={gap:.1f}x")
         if N_analytical:
             print(f"         Analytical={N_analytical:.2e}, "
-                  f"MC/Analytical={N_mean/N_analytical:.1f}x (Jensen enhancement)")
+                  f"MC/Analytical={N_mean/N_analytical:.1f}x")
 
     axes[0].set_ylabel('Probability density')
     fig.suptitle(
-        r'Monte Carlo null depth distributions ($10^5$ realisations, '
-        r'NICE performance)',
+        r'MC null depth distributions ($10^5$ realisations, '
+        r'adopted warm-bench parameters)',
         fontsize=13, y=1.02)
     fig.tight_layout()
 
     outpath = os.path.join(OUTPUT_DIR, 'fig11_mc_null_distributions.png')
     fig.savefig(outpath, bbox_inches='tight')
+    fig.savefig(outpath.replace('.png', '.pdf'), dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: {outpath}")
+    print(f"  Saved: {outpath} / .pdf")
 
 
 def generate_figure_12(results):
@@ -969,8 +975,8 @@ def generate_figure_12(results):
     N_real = null_depths.shape[0]
 
     req_sets = get_null_requirements()
-    req_pnf = req_sets['photon_noise_floor']
-    req_birb = req_sets['birbacher']
+    req_earlier = req_sets['earlier']
+    req_refined = req_sets['refined']
 
     colors = ['#d62728', '#ff7f0e', '#2ca02c', '#1f77b4', '#9467bd']
 
@@ -984,12 +990,12 @@ def generate_figure_12(results):
         ax.semilogx(sorted_N, cdf, color=col, lw=2.5,
                      label=r'$\lambda = %d\,\mu$m' % int(lam))
 
-        # Requirement lines (this work)
-        N_req_p = req_pnf.get(lam, 1e-5)
+        # Earlier requirement (Ranganathan 2024)
+        N_req_p = req_earlier.get(lam, 1e-5)
         ax.axvline(x=N_req_p, color=col, ls='-.', lw=1, alpha=0.5)
 
-        # Requirement lines (Birbacher)
-        N_req_b = req_birb.get(lam, 1e-5)
+        # Refined requirement (Birbacher 2026)
+        N_req_b = req_refined.get(lam, 1e-5)
         ax.axvline(x=N_req_b, color=col, ls=':', lw=1, alpha=0.3)
 
     # Horizontal percentile lines
@@ -998,35 +1004,36 @@ def generate_figure_12(results):
     ax.axhline(y=0.95, color='gray', ls='--', lw=0.8, alpha=0.5)
     ax.text(8e-6, 0.97, '95th percentile', fontsize=8, color='gray')
 
-    ax.set_xlabel('Null Depth')
-    ax.set_ylabel('Cumulative Probability')
-    ax.set_title('Cumulative Null Depth Distribution')
+    ax.set_xlabel('Null depth')
+    ax.set_ylabel('Cumulative probability')
+    ax.set_title('Cumulative null depth distribution')
     ax.legend(fontsize=10)
     ax.set_xlim(1e-6, 1e-1)
     ax.set_ylim(0, 1.05)
     ax.grid(True, alpha=0.3, which='both')
 
-    # Annotations for requirement sets
+    # Requirement-line key
     ax.text(0.02, 0.15,
-            'Dash-dot: Req. (this work)\nDotted: Req. (Birbacher+2026)',
+            'Dash-dot: Earlier requirement\nDotted: Refined requirement',
             transform=ax.transAxes, fontsize=8,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     fig.tight_layout()
-    outpath = os.path.join(OUTPUT_DIR, 'fig12_null_cdf.png')
+    outpath = os.path.join(OUTPUT_DIR, 'fig_mc_cdf.png')
     fig.savefig(outpath, bbox_inches='tight')
+    fig.savefig(outpath.replace('.png', '.pdf'), dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: {outpath}")
+    print(f"  Saved: {outpath} / .pdf")
 
     # Print pass rates
     print("\n  Pass rates P(N < N_req):")
-    print(f"  {'λ [µm]':>8} {'Phot. noise':>12} {'SNR-based':>12}")
+    print(f"  {'λ [µm]':>8} {'Earlier':>12} {'Refined':>12}")
     print(f"  {'-'*36}")
     for j, lam in enumerate(wavelengths):
         N_col = null_depths[:, j]
-        P_pnf = np.mean(N_col < req_pnf.get(lam, 1e-5)) * 100
-        P_birb = np.mean(N_col < req_birb.get(lam, 1e-5)) * 100
-        print(f"  {lam:8.0f} {P_pnf:11.1f}% {P_birb:11.1f}%")
+        P_earlier = np.mean(N_col < req_earlier.get(lam, 1e-5)) * 100
+        P_refined = np.mean(N_col < req_refined.get(lam, 1e-5)) * 100
+        print(f"  {lam:8.0f} {P_earlier:11.1f}% {P_refined:11.1f}%")
 
 
 def generate_figure_13(results):
@@ -1057,12 +1064,12 @@ def generate_figure_13(results):
 
     # Threshold line
     ax_pce.axvline(x=3.5, color='red', ls='--', lw=1.5)
-    ax_pce.text(3.7, ax_pce.get_ylim()[1] * 0.9, 'Max. req. (3.5%)',
+    ax_pce.text(3.7, ax_pce.get_ylim()[1] * 0.9, 'Yield simulation lower bound (3.5%)',
                 fontsize=9, color='red')
 
-    ax_pce.set_xlabel('Photon Conversion Efficiency [%]')
-    ax_pce.set_ylabel('Probability Density')
-    ax_pce.set_title('PCE Distribution')
+    ax_pce.set_xlabel('Photon conversion efficiency (%)')
+    ax_pce.set_ylabel('Probability density')
+    ax_pce.set_title('Photon conversion efficiency')
     ax_pce.legend(fontsize=8)
     ax_pce.grid(True, alpha=0.3)
 
@@ -1075,21 +1082,22 @@ def generate_figure_13(results):
                     edgecolor='black', linewidth=0.2,
                     label=r'$%d\,\mu$m (mean: %.1f%%)' % (int(lam), eta_mean))
 
-    ax_eta.set_xlabel('Fiber Coupling Efficiency [%]')
-    ax_eta.set_ylabel('Probability Density')
-    ax_eta.set_title(r'Fiber Coupling Distribution (Mar$\acute{e}$chal degradation)')
+    ax_eta.set_xlabel('Fiber coupling efficiency (%)')
+    ax_eta.set_ylabel('Probability density')
+    ax_eta.set_title('Fiber coupling (Maréchal degradation)')
     ax_eta.legend(fontsize=8)
     ax_eta.grid(True, alpha=0.3)
 
     fig.suptitle(
-        r'Throughput and Coupling Distributions ($10^5$ realisations)',
+        r'MC throughput and coupling distributions ($10^5$ realisations)',
         fontsize=13, y=1.02)
     fig.tight_layout()
 
     outpath = os.path.join(OUTPUT_DIR, 'fig13_throughput_distributions.png')
     fig.savefig(outpath, bbox_inches='tight')
+    fig.savefig(outpath.replace('.png', '.pdf'), dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: {outpath}")
+    print(f"  Saved: {outpath} / .pdf")
 
     # Print summary
     print("\n  Throughput summary:")
@@ -1181,17 +1189,17 @@ def print_technology_gap(results):
     null_depths = results['null_depths']
 
     req_sets = get_null_requirements()
-    req_pnf = req_sets['photon_noise_floor']
-    req_birb = req_sets['birbacher']
+    req_earlier = req_sets['earlier']
+    req_refined = req_sets['refined']
 
-    print(f"\n  {'λ [µm]':>8} {'N_mean':>12} {'Req(paper)':>12} {'Gap':>8} "
-          f"{'Req(B+26)':>12} {'Gap':>8} {'σ improve':>12}")
+    print(f"\n  {'λ [µm]':>8} {'N_mean':>12} {'Earlier':>12} {'Gap':>8} "
+          f"{'Refined':>12} {'Gap':>8} {'σ improve':>12}")
     print(f"  {'-'*80}")
 
     for j, lam in enumerate(wavelengths):
         N_mean = np.mean(null_depths[:, j])
-        N_p = req_pnf.get(lam, 1e-5)
-        N_b = req_birb.get(lam, 1e-5)
+        N_p = req_earlier.get(lam, 1e-5)
+        N_b = req_refined.get(lam, 1e-5)
         gap_p = N_mean / N_p
         gap_b = N_mean / N_b
         sigma_improve = gap_b**(1/4)
@@ -1211,10 +1219,9 @@ if __name__ == '__main__':
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print("=" * 80)
-    print("LIFE E2E Monte Carlo — Merged Module")
+    print("LIFE E2E Monte Carlo")
     print("  Engine:  e2e_monte_carlo_v2.py")
     print("  Figures: e2e_monte_carlo_v3.py")
-    print("  Archive: e2e_monte_carlo_fixed.py is DEPRECATED")
     print("=" * 80)
     print()
 
@@ -1242,6 +1249,97 @@ if __name__ == '__main__':
     # 6. Bug fix comparison
     print_bugfix_comparison(results)
 
+    # ---- CSV/TXT exports ----
+    wavelengths_um = results['wavelengths']
+    null_depths = results['null_depths']
+    throughputs = results['throughputs']
+    coupling_effs = results['coupling_effs']
+    n_wav = len(wavelengths_um)
+
+    # Per-wavelength MC statistics
+    mc_stats_path = os.path.join(OUTPUT_DIR, 'mc_per_wavelength.csv')
+    with open(mc_stats_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'N_mean', 'N_median', 'N_p5',
+                      'N_p50', 'N_p95', 'N_p99',
+                      'T_mean_pct', 'T_std_pct',
+                      'eta_mean_pct'])
+        for j in range(n_wav):
+            N_col = null_depths[:, j]
+            T_col = throughputs[:, j]
+            eta_col = coupling_effs[:, j]
+            cw.writerow([
+                f'{wavelengths_um[j]:.1f}',
+                f'{np.mean(N_col):.6e}',
+                f'{np.median(N_col):.6e}',
+                f'{np.percentile(N_col, 5):.6e}',
+                f'{np.percentile(N_col, 50):.6e}',
+                f'{np.percentile(N_col, 95):.6e}',
+                f'{np.percentile(N_col, 99):.6e}',
+                f'{np.mean(T_col)*100:.4f}',
+                f'{np.std(T_col)*100:.4f}',
+                f'{np.mean(eta_col)*100:.2f}',
+            ])
+    print(f"  Exported: {mc_stats_path}")
+
+    # MC parameters
+    params_path = os.path.join(OUTPUT_DIR, 'mc_parameters.csv')
+    with open(params_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['parameter', 'value'])
+        params = results['parameters']
+        for key, val in params.items():
+            cw.writerow([key, val])
+    print(f"  Exported: {params_path}")
+
+    # Technology gap table (both requirement curves)
+    req_sets = get_null_requirements()
+    gap_path = os.path.join(OUTPUT_DIR, 'mc_technology_gap.csv')
+    with open(gap_path, 'w', newline='') as csvf:
+        cw = csv.writer(csvf)
+        cw.writerow(['wavelength_um', 'N_mc_mean', 'N_mc_p95',
+                      'N_req_earlier', 'N_req_refined',
+                      'gap_earlier_mean', 'gap_earlier_p95',
+                      'gap_refined_mean', 'gap_refined_p95'])
+        for j in range(n_wav):
+            lam = wavelengths_um[j]
+            N_col = null_depths[:, j]
+            N_mean = np.mean(N_col)
+            N_p95 = np.percentile(N_col, 95)
+            N_req_e = req_sets['earlier'].get(lam, 1e-5)
+            N_req_r = req_sets['refined'].get(lam, 1e-5)
+            cw.writerow([
+                f'{lam:.1f}',
+                f'{N_mean:.6e}',
+                f'{N_p95:.6e}',
+                f'{N_req_e:.6e}',
+                f'{N_req_r:.6e}',
+                f'{N_mean / N_req_e:.2f}',
+                f'{N_p95 / N_req_e:.2f}',
+                f'{N_mean / N_req_r:.2f}',
+                f'{N_p95 / N_req_r:.2f}',
+            ])
+    print(f"  Exported: {gap_path}")
+
+    # WFE-zero validation
+    if wfe_zero_results is not None:
+        wfe0_path = os.path.join(OUTPUT_DIR, 'mc_wfe_zero_validation.csv')
+        wfe0_null = wfe_zero_results['null_depths']
+        wfe0_wav = wfe_zero_results['wavelengths']
+        with open(wfe0_path, 'w', newline='') as csvf:
+            cw = csv.writer(csvf)
+            cw.writerow(['wavelength_um', 'N_mean_wfe0', 'N_median_wfe0',
+                          'N_p95_wfe0'])
+            for j in range(len(wfe0_wav)):
+                N_col = wfe0_null[:, j]
+                cw.writerow([
+                    f'{wfe0_wav[j]:.1f}',
+                    f'{np.mean(N_col):.6e}',
+                    f'{np.median(N_col):.6e}',
+                    f'{np.percentile(N_col, 95):.6e}',
+                ])
+        print(f"  Exported: {wfe0_path}")
+
     print("\n" + "=" * 80)
-    print("All figures and tables generated successfully.")
+    print("All figures, tables and CSV exports generated successfully.")
     print("=" * 80)

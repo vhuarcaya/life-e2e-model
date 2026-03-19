@@ -1360,7 +1360,7 @@ def run_full_analysis():
     # Marechal approximation
     strehl_approx = np.exp(-(2 * np.pi * wfe_waves)**2)
     ax4.plot(wfe_waves, strehl_approx, 'k--', lw=1.5, alpha=0.6,
-            label='Marechal approx.')
+            label='Maréchal approximation')
 
     # Reference lines
     ax4.axhline(y=0.9, color='gray', ls=':', alpha=0.4)
@@ -1374,11 +1374,10 @@ def run_full_analysis():
         ax4.text(waves + 0.002, 0.55, quality, fontsize=9, color=color,
                 rotation=90)
 
-    ax4.set_xlabel(r'Wavefront error amplitude [waves RMS at 10 $\mu$m]',
+    ax4.set_xlabel(r'Wavefront error amplitude (waves RMS at 10 $\mu$m)',
                    fontsize=12)
     ax4.set_ylabel(r'Relative coupling $\eta/\eta_0$', fontsize=12)
-    ax4.set_title(r'Fiber coupling sensitivity to Zernike aberrations '
-                  r'(top-hat beam, 10 $\mu$m)', fontsize=12)
+    # Title removed — A&A caption carries the description
     ax4.legend(fontsize=8, loc='lower center', bbox_to_anchor=(0.55, 0.0))
     ax4.set_ylim(0.5, 1.02)
     ax4.set_xlim(0, 0.15)

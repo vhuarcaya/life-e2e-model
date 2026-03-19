@@ -793,7 +793,7 @@ def make_fig5_material_properties():
     ax.set_ylabel('Reflectivity (%)')
     ax.set_ylim(96, 100)
     ax.legend(loc='lower right')
-    ax.set_title('(a) Gold Mirror Reflectivity (Tabulated, Ordal+1983/Palik)')
+    ax.set_title('(a) Gold mirror reflectivity')
     ax.axvspan(*LIFE_BAND, alpha=0.08, color='blue')
 
     # --- Panel B: BS substrate transmission ---
@@ -806,8 +806,8 @@ def make_fig5_material_properties():
     ax.plot(lam_um, T_caf2_ar * 100, '-',
             label=r'CaF$_2$ + AR ($n \approx 1.4$)', color='C0')
     ax.plot(lam_um, T_znse_ar * 100, '-',
-            label=r'ZnSe + AR ($n \approx 2.4$, Tatian)', color='C1')
-    ax.plot(lam_um, T_multi * 100, '--', label='Multi-band (best of each)',
+            label=r'ZnSe + AR ($n \approx 2.4$)', color='C1')
+    ax.plot(lam_um, T_multi * 100, '--', label='Adopted multi-band choice',
             color='black', lw=2.5, alpha=0.7)
     ax.plot(lam_um, T_caf2_bare * 100, ':',
             label=r'CaF$_2$ bare (no AR)', color='C3', alpha=0.5)
@@ -818,7 +818,7 @@ def make_fig5_material_properties():
     ax.set_ylabel('Transmission (%)')
     ax.set_ylim(0, 105)
     ax.legend(loc='lower left', fontsize=8)
-    ax.set_title('(b) Beamsplitter Substrate (2 mm, single pass)')
+    ax.set_title('(b) Beamsplitter substrate transmission (2 mm, single pass)')
     ax.axvspan(*LIFE_BAND, alpha=0.08, color='blue')
 
     # --- Panel C: Detector QE ---
@@ -834,7 +834,7 @@ def make_fig5_material_properties():
     ax.set_xlabel(r'Wavelength ($\mu$m)')
     ax.set_ylim(0, 85)
     ax.legend(loc='upper right')
-    ax.set_title('(c) Detector Quantum Efficiency')
+    ax.set_title('(c) Detector quantum efficiency')
     ax.axvspan(*LIFE_BAND, alpha=0.08, color='blue')
 
     for ax in axes:
@@ -908,14 +908,14 @@ def make_fig6_waterfall():
                         f'{height:.1f}%', ha='center', va='bottom',
                         fontsize=6.5)
 
-    ax.axhline(5.0, color='green', ls='--', alpha=0.5, lw=1.5)
-    ax.text(len(section_names) + 0.3, 5.5, 'LIFE req.\n(~5% PCE)',
+    ax.axhline(3.5, color='green', ls='--', alpha=0.5, lw=1.5)
+    ax.text(len(section_names) + 0.3, 4.0, 'Yield simulation\nlower bound (3.5%)',
             fontsize=8, color='green')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=7.5, ha='center')
-    ax.set_ylabel('Cumulative Throughput (%)')
-    ax.set_title(r'Throughput Cascade at $\lambda$ = '
-                 f'{lam_ref} $\\mu$m -- LIFE Full Chain (7 sections)')
+    ax.set_ylabel('Cumulative photon conversion efficiency (%)')
+    ax.set_title(r'Cumulative throughput at $\lambda$ = '
+                 f'{lam_ref} $\\mu$m (one dark output)')
     ax.legend(loc='upper right')
     ax.set_ylim(0, 110)
     ax.grid(axis='y', alpha=0.3)
@@ -976,7 +976,7 @@ def make_fig7_throughput_vs_wavelength():
 
     # NICE measured point
     ax.plot(4.0, 22.0, 's', color='red', ms=10, zorder=5,
-            label='NICE measured: 22% (single output)')
+            label='NICE benchmark: 22% at 4.0 $\\mu$m')
 
     ax.fill_between([3.5, 20], 3.5, 10.0, alpha=0.06, color='green')
     ax.text(11.0, 5.0, 'LIFE PCE range\n(3.5--10%)', fontsize=9,
@@ -986,7 +986,7 @@ def make_fig7_throughput_vs_wavelength():
     ax.axvspan(*LIFE_BAND, alpha=0.06, color='blue')
     ax.set_ylabel('Photon Conversion Efficiency (%)')
     ax.set_ylim(0.5, 100)
-    ax.set_title('End-to-End Throughput: LIFE Combiner')
+    ax.set_title('End-to-end photon conversion efficiency')
     ax.legend(loc='upper right', fontsize=8)
 
     # Bottom panel: top-hat / Gaussian ratio
@@ -994,8 +994,8 @@ def make_fig7_throughput_vs_wavelength():
     ratio = res_life_th['T_total'] / np.maximum(res_life_g['T_total'], 1e-10)
     ax.plot(lam_um, ratio, '-', color='purple', lw=2)
     ax.axhline(0.815, color='gray', ls='--', alpha=0.5)
-    ax.text(18, 0.82, '81.5% (Module 1)', fontsize=8, color='gray')
-    ax.set_ylabel('Top-hat / Gaussian\nthroughput ratio')
+    ax.text(18, 0.82, '81.5% (coupling penalty)', fontsize=8, color='gray')
+    ax.set_ylabel('Top-hat / Gaussian\ncoupling ratio')
     ax.set_xlabel(r'Wavelength ($\mu$m)')
     ax.set_ylim(0.75, 0.90)
     ax.axvspan(*LIFE_BAND, alpha=0.06, color='blue')

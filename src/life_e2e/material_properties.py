@@ -1028,9 +1028,9 @@ def make_material_figures() -> None:
     ax17a.plot(lam, znse_sellmeier(lam), 'r-', lw=2.5, label='ZnSe')
     ax17a.plot(lam, kbr_refractive_index(lam), 'g--', lw=2, label='KBr')
     ax17a.axvspan(6, 16, alpha=0.08, color='green', label='LIFE band')
-    ax17a.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
+    ax17a.set_xlabel(r'Wavelength ($\mu$m)', fontsize=12)
     ax17a.set_ylabel('Refractive index $n$', fontsize=12)
-    ax17a.set_title('Refractive Index of BS Substrates', fontsize=13)
+    ax17a.set_title('Refractive index of BS substrates', fontsize=13)
     ax17a.legend(fontsize=10)
     ax17a.set_xlim(1, 25)
     ax17a.grid(True, alpha=0.3)
@@ -1040,9 +1040,9 @@ def make_material_figures() -> None:
     ax17b.plot(lam, np.gradient(znse_sellmeier(lam), lam), 'r-', lw=2.5,
                label=r'ZnSe $dn/d\lambda$')
     ax17b.axvspan(6, 16, alpha=0.08, color='green')
-    ax17b.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
-    ax17b.set_ylabel(r'$dn/d\lambda$ [$\mu$m$^{-1}$]', fontsize=12)
-    ax17b.set_title('Chromatic Dispersion', fontsize=13)
+    ax17b.set_xlabel(r'Wavelength ($\mu$m)', fontsize=12)
+    ax17b.set_ylabel(r'$dn/d\lambda$ ($\mu$m$^{-1}$)', fontsize=12)
+    ax17b.set_title(r'Material dispersion $dn/d\lambda$', fontsize=13)
     ax17b.legend(fontsize=10)
     ax17b.set_xlim(1, 25)
     ax17b.grid(True, alpha=0.3)
@@ -1063,29 +1063,29 @@ def make_material_figures() -> None:
                label='KBr (2mm, bare)')
     _, T_best = best_substrate(lam, 2.0)
     ax18a.plot(lam, T_best * 100, 'k:', lw=2, alpha=0.5,
-               label='Best substrate')
+               label='Adopted substrate choice')
     ax18a.axvspan(6, 16, alpha=0.08, color='green')
-    ax18a.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
-    ax18a.set_ylabel('Transmission [%]', fontsize=12)
-    ax18a.set_title('BS Substrate Transmission (2mm, AR-coated)', fontsize=13)
+    ax18a.set_xlabel(r'Wavelength ($\mu$m)', fontsize=12)
+    ax18a.set_ylabel('Transmission (%)', fontsize=12)
+    ax18a.set_title('BS substrate transmission (2 mm, AR-coated)', fontsize=13)
     ax18a.legend(fontsize=9)
     ax18a.set_xlim(1, 25)
     ax18a.set_ylim(0, 100)
     ax18a.grid(True, alpha=0.3)
 
     lam_f = np.linspace(2, 22, 400)
-    for ftype, color, ls in [('InF3', 'blue', '-'),
-                              ('chalcogenide', 'red', '-'),
-                              ('silver_halide', 'green', '--'),
-                              ('hollow_core', 'purple', '-.')]:
+    for ftype, color, ls, display in [('InF3', 'blue', '-', r'InF$_3$'),
+                              ('chalcogenide', 'red', '-', 'Chalcogenide'),
+                              ('silver_halide', 'green', '--', 'Silver halide'),
+                              ('hollow_core', 'purple', '-.', 'Hollow-core')]:
         att = fiber_attenuation(lam_f, ftype)
-        ax18b.semilogy(lam_f, att, color=color, ls=ls, lw=2, label=ftype)
+        ax18b.semilogy(lam_f, att, color=color, ls=ls, lw=2, label=display)
     ax18b.axvspan(6, 16, alpha=0.08, color='green')
     ax18b.axhline(y=1.0, color='gray', ls=':', alpha=0.5)
     ax18b.text(20, 1.2, '1 dB/m', fontsize=9, color='gray')
-    ax18b.set_xlabel(r'Wavelength [$\mu$m]', fontsize=12)
-    ax18b.set_ylabel('Attenuation [dB/m]', fontsize=12)
-    ax18b.set_title('Single-Mode Fiber Attenuation', fontsize=13)
+    ax18b.set_xlabel(r'Wavelength ($\mu$m)', fontsize=12)
+    ax18b.set_ylabel('Attenuation (dB/m)', fontsize=12)
+    ax18b.set_title('Candidate fiber attenuation', fontsize=13)
     ax18b.legend(fontsize=9)
     ax18b.set_xlim(2, 22)
     ax18b.set_ylim(0.01, 100)

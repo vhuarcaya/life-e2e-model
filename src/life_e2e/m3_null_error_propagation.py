@@ -1476,8 +1476,8 @@ def run_full_analysis() -> dict:
                        color=col, ms=9, mec='black', mew=0.8, zorder=5)
 
     ax12a.axvline(x=1.2, color='gray', ls='--', alpha=0.6)
-    ax12a.text(1.45, 3e-4, 'NICE\nmeasured\n(1.2 nm)',
-               fontsize=9, color='gray')
+    ax12a.text(1.45, 3e-4, 'NICE\n(1.2 nm RMS)',
+               fontsize=8, color='gray')
 
     handles_a, _ = ax12a.get_legend_handles_labels()
     handles_a.append(Line2D([0], [0], marker='D', color='gray', ls='',
@@ -1488,7 +1488,7 @@ def run_full_analysis() -> dict:
 
     ax12a.set_xlabel('OPD RMS (nm)', fontsize=13)
     ax12a.set_ylabel('Null depth (OPD term only)', fontsize=13)
-    ax12a.set_title('Null depth vs OPD stability', fontsize=13)
+    ax12a.set_title('OPD contribution to null depth', fontsize=13)
     ax12a.set_ylim(1e-8, 1e-2)
     ax12a.set_xlim(0, 15)
     ax12a.grid(True, alpha=0.3, which='both')
@@ -1516,21 +1516,21 @@ def run_full_analysis() -> dict:
                r'Per-term ($N_\mathrm{req}/9$)',
                fontsize=9, color='black', alpha=0.5)
 
-    # Compliant / non-compliant shading
-    ax12b.axhspan(1e-3, 1.0, color='green', alpha=0.03)
-    ax12b.axhspan(1.0, 1e3, color='red', alpha=0.03)
+    # Compliant / non-compliant shading (subdued)
+    ax12b.axhspan(1e-3, 1.0, color='green', alpha=0.015)
+    ax12b.axhspan(1.0, 1e3, color='red', alpha=0.015)
 
     # NICE spec — measured fact, not a recommendation
     ax12b.axvline(x=0.2, color='gray', ls='--', alpha=0.7, lw=1.5)
-    ax12b.text(0.21, 500, r'NICE spec (0.2 $\mu$m)',
-               fontsize=9, color='gray', va='top')
+    ax12b.text(0.21, 500, r'NICE spec ($\Delta d = 0.2\,\mu$m)',
+               fontsize=8, color='gray', va='top')
 
     ax12b.legend(fontsize=9, title='Wavelength', loc='lower right')
     ax12b.set_xlabel(r'BS thickness mismatch $\Delta d$ ($\mu$m)',
                      fontsize=13)
     ax12b.set_ylabel(r'$N_\mathrm{BS}\;/\;N_\mathrm{req}(\lambda)$',
                      fontsize=13)
-    ax12b.set_title('BS chromatic null relative to requirement', fontsize=13)
+    ax12b.set_title('BS chromatic null (earlier requirement)', fontsize=13)
     ax12b.set_ylim(1e-3, 1e3)
     ax12b.set_xlim(0, 1.0)
     ax12b.grid(True, alpha=0.3, which='both')
